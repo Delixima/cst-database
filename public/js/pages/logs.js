@@ -131,7 +131,7 @@ boot(async () => {
     if (from) q = q.gte('occurred_at', from);
     if (to) q = q.lte('occurred_at', to);
     if (f.flag === 'override') q = q.eq('is_override', true);
-    if (f.flag === 'approval_pending') q = q.not('approved_by', 'is', null).is('approval_confirmed_at', null);
+    if (f.flag === 'approval_pending') q = q.eq('action_taken', 'arrest').not('approved_by', 'is', null).is('approval_confirmed_at', null);
     if (f.flag === 'report_missing') q = q.eq('offense_report_required', true).eq('report_filed', false).in('action_taken', ['arrest', 'termination']);
     if (f.flag === 'reset') q = q.eq('counts_for_warnings', false);
     if (!f.deleted) q = q.is('deleted_at', null);
@@ -166,7 +166,7 @@ boot(async () => {
   function flagsFor(r) {
     return [
       r.is_override ? flag('Override', 'warn', `Recommended: ${recommendationLabel(r.recommendation_code, r.recommended_warning_number, r.offense_max_warnings)}`) : null,
-      r.approved_by && !r.approval_confirmed_at ? flag('⧭ to confirm', 'warn') : null,
+      r.action_taken === 'arrest' && r.approved_by && !r.approval_confirmed_at ? flag('⧭ to confirm', 'warn') : null,
       r.offense_report_required && !r.report_filed && ['arrest', 'termination'].includes(r.action_taken) ? flag('Report', 'danger', 'Required report not filed') : null,
       !r.counts_for_warnings ? flag('Reset', 'muted', 'Warnings reset: no longer counts') : null,
       r.order_type !== 'none' ? flag(r.order_type === 'hicom_isb_order' ? 'HICOM/ISB' : r.order_type === 'kill_on_sight' ? 'KOS' : 'AOS', 'info', `Ordered by ${r.ordered_by ?? '—'}`) : null,

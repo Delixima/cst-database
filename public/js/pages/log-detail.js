@@ -66,7 +66,7 @@ boot(async () => {
   function render(log, history) {
     const editable = canEditLog(ctx, log);
     const deleted = Boolean(log.deleted_at);
-    const pendingApproval = log.approved_by && !log.approval_confirmed_at;
+    const pendingApproval = log.action_taken === 'arrest' && log.approved_by && !log.approval_confirmed_at;
     const reportMissing = log.offense_report_required && !log.report_filed && ['arrest', 'termination'].includes(log.action_taken);
 
     // ----- actions

@@ -138,7 +138,9 @@ end $$;
 -- anon: no access at all
 -- -----------------------------------------------------------------------------
 set local role anon;
-do $$ begin
+do $$
+declare i int;
+begin
   perform tests.throws('select * from public.sanction_logs', 'permission denied', 'anon: cannot read sanction_logs');
   perform tests.throws('select * from public.offenses', 'permission denied', 'anon: cannot read offenses');
   perform tests.throws('select * from public.profiles', 'permission denied', 'anon: cannot read profiles');
@@ -164,6 +166,23 @@ do $$ begin
   perform tests.ok((public.resolve_login_email('Test_Trooper_A', 'Correct-Horse-1') ->> 'locked')::boolean,
     'login: 5 failures in 15 minutes lock the username');
   perform tests.throws('select * from private.login_attempts', 'permission denied', 'anon: cannot read login attempts');
+
+  -- Per-IP limit: 20 failures from the same Cloudflare client IP, with a
+  -- different spoofed X-Forwarded-For each time, still lock that IP.
+  for i in 1..20 loop
+    perform set_config('request.headers',
+      json_build_object('cf-connecting-ip', '203.0.113.7', 'x-forwarded-for', '10.0.0.' || i || ', 198.51.100.1')::text, true);
+    perform public.resolve_login_email('ip_probe_' || i, 'wrong');
+  end loop;
+  perform set_config('request.headers',
+    json_build_object('cf-connecting-ip', '203.0.113.7', 'x-forwarded-for', '10.9.9.9')::text, true);
+  perform tests.ok((public.resolve_login_email('ip_probe_new', 'wrong') ->> 'locked')::boolean,
+    'login: per-IP limit uses cf-connecting-ip, spoofed X-Forwarded-For does not bypass it');
+  perform set_config('request.headers',
+    json_build_object('cf-connecting-ip', '203.0.113.8')::text, true);
+  perform tests.ok(public.resolve_login_email('ip_probe_other', 'wrong') ->> 'locked' is null,
+    'login: another client IP is not affected');
+  perform set_config('request.headers', '', true);
 end $$;
 reset role;
 
@@ -293,6 +312,8 @@ begin
   perform tests.throws($q$insert into public.offenses (code, procedure, name, target, default_action) values ('L1.0', 'lima', 'Test', 'immigrant', 'search')$q$,
     'row-level security', 'trooper: cannot create offenses');
   perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('trooper_a')$q$, 'manager', 'trooper: cannot promote itself');
+  perform tests.throws($q$update public.profiles set roblox_username = 'Renamed_Trooper' where id = tests.id('trooper_a')$q$,
+    'only be changed by the manager', 'trooper: cannot rename itself once approved');
   perform tests.ok(tests.affected($q$update public.profiles set roblox_username = 'Hacked_1' where id = tests.id('trooper_b')$q$) = 0,
     'trooper: cannot edit another profile');
   perform tests.ok(tests.count_rows('select 1 from public.profiles') >= 9, 'trooper: reads member list');
@@ -340,6 +361,27 @@ do $$ begin
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'x' where id = %L$q$, tests.id('log_trooper_b'))) = 0, 'read_only: cannot edit logs');
   perform tests.throws($q$select public.get_recommendation('Someone_2', tests.offense('A5.0'))$q$, 'Access denied', 'read_only: no recommendation RPC');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'read_only: cannot read audit_log');
+end $$;
+reset role;
+
+select tests.login(tests.id('trooper_a'));
+do $$
+declare l public.sanction_logs%rowtype;
+begin
+  insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, approved_by)
+  values (tests.offense('A10.0'), 'Warn_Approver', 'personnel', 'warning', tests.id('cs_a')) returning * into l;
+  perform tests.ok(l.approved_by is null and l.approval_confirmed_at is null,
+    '⧭: approver dropped on a warning (approval only applies to arrests)');
+  insert into tests.ids values ('warn_approver_log', l.id);
+end $$;
+reset role;
+
+select tests.login(tests.id('cs_a'));
+do $$ begin
+  perform tests.ok(tests.affected(format($q$update public.sanction_logs set approved_by = %L where id = %L$q$,
+    tests.id('cs_a'), tests.id('warn_approver_log'))) = 1
+    and (select approved_by is null from public.sanction_logs where id = tests.id('warn_approver_log')),
+    '⧭: approver cannot be added to a warning by an update either');
 end $$;
 reset role;
 
@@ -440,6 +482,21 @@ begin
 
   perform tests.throws($q$update public.profiles set role = 'officer' where id = tests.id('manager')$q$, 'last active manager', 'manager: last active manager protected');
   perform tests.ok(tests.affected($q$update public.profiles set role = 'cs' where id = tests.id('trooper_b')$q$) = 1, 'manager: changes roles');
+
+  -- update_member: all or nothing
+  perform tests.throws(format($q$select public.update_member(%L, 'Should_Not_Save', null, 'trooper', null, true, array[%L, '00000000-0000-0000-0000-00000000dead']::uuid[])$q$,
+    tests.id('reader'), tests.id('squad_a')), 'foreign key', 'update_member: an invalid unit fails the whole update');
+  perform tests.ok((select roblox_username from public.profiles where id = tests.id('reader')) = 'Test_Reader'
+    and not exists (select 1 from public.profile_squads where profile_id = tests.id('reader')),
+    'update_member: nothing saved after the failure (atomic)');
+  perform public.update_member(tests.id('reader'), 'Reader_Renamed', 'CST-77', 'read_only', null, true,
+    array[tests.id('squad_a'), tests.id('function')]);
+  perform tests.ok((select roblox_username = 'Reader_Renamed' and service_number = 'CST-77' from public.profiles where id = tests.id('reader'))
+    and (select count(*) from public.profile_squads where profile_id = tests.id('reader')) = 2,
+    'update_member: profile and units saved together');
+  perform public.update_member(tests.id('reader'), 'Test_Reader', null, 'read_only', null, true, '{}');
+  perform tests.ok(not exists (select 1 from public.profile_squads where profile_id = tests.id('reader')),
+    'update_member: an empty unit list removes every membership');
 
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set deleted_at = now() where id = %L$q$, tests.id('log_trooper_b'))) = 1, 'manager: soft deletes');
 

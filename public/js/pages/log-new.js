@@ -65,6 +65,8 @@ boot(async () => {
     }
   }
 
+  if (existing) document.title = `Edit ${existing.log_number} — CST`;
+
   const offenseById = new Map(offenses.map((o) => [o.id, o]));
   const state = {
     rec: null,
@@ -138,7 +140,6 @@ boot(async () => {
     { value: existing?.approved_by ?? (ctx.perms.cs ? ctx.user.id : ''), placeholder: '— Select the approver —' });
   const fApprover = field(`Approver ${APPROVAL_MARK} (Company Sergeant or above)`, approverSelect,
     'The CS or above who approved the arrest. They must confirm it on the site if it is not you.', { required: true });
-  const approverReq = fApprover.querySelector('.req');
 
   const agentSelect = ctx.perms.officer
     ? select(agents.map((a) => ({ value: a.id, label: `${a.roblox_username ?? '(no username)'} — ${ROLES[a.role]}` })),
@@ -250,8 +251,8 @@ boot(async () => {
       : '';
 
     fOrderedBy.hidden = order === 'none';
-    fApprover.hidden = !offense?.requires_cs_approval;
-    approverReq.hidden = action !== 'arrest';
+    // The approver only matters for an arrest on a ⧭ offense
+    fApprover.hidden = !(offense?.requires_cs_approval && action === 'arrest');
     fJail.hidden = !JAIL_ACTIONS.has(action);
 
     if (!state.jailTouched && JAIL_ACTIONS.has(action)) {
@@ -486,7 +487,7 @@ boot(async () => {
       override_reason: v.reason || null,
       order_type: v.order,
       ordered_by: v.order !== 'none' ? orderedByInput.value.trim() : null,
-      approved_by: v.offense.requires_cs_approval && approverSelect.value ? approverSelect.value : (existing?.approved_by ?? null),
+      approved_by: v.offense.requires_cs_approval && v.action === 'arrest' && approverSelect.value ? approverSelect.value : null,
       report_filed: report.input.checked,
       location: locationInput.value.trim() || null,
       occurred_at: v.occurred,

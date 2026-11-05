@@ -115,6 +115,7 @@ Une base déjà installée se met à jour avec les fichiers de `supabase/migrati
 | `20261105_english_messages.sql` | Messages d'erreur de la base en anglais (recrée 11 fonctions, aucune donnée touchée) |
 | `20261106_multi_squads.sql` | Plusieurs escouades par membre + fonctions (Internal Affairs, Instructor…). Les affectations existantes sont conservées |
 | `20261107_username_login.sql` | Connexion avec l'email **ou** le pseudo Roblox (vérification du mot de passe côté base, 5 échecs par pseudo / 20 par IP en 15 min → blocage) |
+| `20261108_review_fixes.sql` | Corrections de la revue : approbation ⧭ réservée aux arrestations, pseudo verrouillé après validation, IP fiable pour la limite de connexion, enregistrement atomique des membres |
 
 L'interface du site est entièrement en anglais. Seule cette documentation reste en français.
 

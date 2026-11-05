@@ -36,6 +36,7 @@ boot(async () => {
             .select('id, log_number, occurred_at, target_username, offense_code, offense_name, agent_username, approver_username, procedure')
             .is('deleted_at', null)
             .eq('status', 'valid')
+            .eq('action_taken', 'arrest')
             .not('approved_by', 'is', null)
             .is('approval_confirmed_at', null)
             .order('created_at', { ascending: false })

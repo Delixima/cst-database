@@ -213,25 +213,16 @@ boot(async () => {
           const c = window.confirm('You are about to remove your own manager rights. Continue?');
           if (!c) return false;
         }
-        const rows = unwrap(await supabase.from('profiles').update({
-          roblox_username: u || null,
-          service_number: s || null,
-          role: role.value,
-          rank_id: rank.value || null,
-          active: active.input.checked,
-        }).eq('id', p.id).select('id'));
-        if (!rows.length) throw new Error('Update refused.');
-
-        // Memberships: add the new ones, remove the unchecked ones.
-        const wanted = new Set([...squadsPick.selected(), ...functionsPick.selected()]);
-        const toAdd = [...wanted].filter((id) => !currentUnits.includes(id));
-        const toRemove = currentUnits.filter((id) => !wanted.has(id));
-        if (toAdd.length) {
-          unwrap(await supabase.from('profile_squads').insert(toAdd.map((squad_id) => ({ profile_id: p.id, squad_id }))));
-        }
-        if (toRemove.length) {
-          unwrap(await supabase.from('profile_squads').delete().eq('profile_id', p.id).in('squad_id', toRemove));
-        }
+        // Profile + memberships in one database transaction (all or nothing).
+        unwrap(await supabase.rpc('update_member', {
+          p_profile_id: p.id,
+          p_roblox_username: u || null,
+          p_service_number: s || null,
+          p_role: role.value,
+          p_rank_id: rank.value || null,
+          p_active: active.input.checked,
+          p_unit_ids: [...new Set([...squadsPick.selected(), ...functionsPick.selected()])],
+        }));
         return true;
       },
     });

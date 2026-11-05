@@ -640,6 +640,12 @@ begin
       raise exception 'Only the manager can change the role, status, rank or service number.'
         using errcode = '42501';
     end if;
+    -- Members set their own username only while pending (sign-up fix-up).
+    -- Once approved, the identity shown on every log is managed by the manager.
+    if new.roblox_username is distinct from old.roblox_username and old.role <> 'pending' then
+      raise exception 'Your Roblox username can only be changed by the manager once your account is approved.'
+        using errcode = '42501';
+    end if;
   end if;
 
   if old.role = 'manager' and old.active and (new.role <> 'manager' or not new.active) then
@@ -938,6 +944,13 @@ begin
   ---------------------------------------------------------------------------
   -- E. ⧭ approval: arrest on an approval-required offense needs a CS+ approver
   ---------------------------------------------------------------------------
+  -- An approval only makes sense for an arrest: drop it for any other action.
+  if new.action_taken <> 'arrest' then
+    new.approved_by           := null;
+    new.approval_confirmed_by := null;
+    new.approval_confirmed_at := null;
+  end if;
+
   if tg_op = 'INSERT' or new.approved_by is distinct from old.approved_by then
     if new.approved_by is not null then
       select p.role into v_approver_role
@@ -1283,6 +1296,51 @@ begin
 end;
 $$;
 
+-- Manager: update a member profile and their squad / function memberships in
+-- ONE transaction (all or nothing). SECURITY INVOKER: RLS and the profile
+-- triggers apply exactly as for direct updates.
+create function public.update_member(
+  p_profile_id      uuid,
+  p_roblox_username text,
+  p_service_number  text,
+  p_role            public.app_role,
+  p_rank_id         uuid,
+  p_active          boolean,
+  p_unit_ids        uuid[]
+)
+returns void
+language plpgsql security invoker
+set search_path = ''
+as $$
+declare
+  v_units uuid[] := coalesce(p_unit_ids, '{}'::uuid[]);
+begin
+  if not private.is_manager() then
+    raise exception 'Only the manager can edit members.' using errcode = '42501';
+  end if;
+
+  update public.profiles
+     set roblox_username = nullif(btrim(p_roblox_username), ''),
+         service_number  = nullif(btrim(p_service_number), ''),
+         role            = p_role,
+         rank_id         = p_rank_id,
+         active          = coalesce(p_active, true)
+   where id = p_profile_id;
+  if not found then
+    raise exception 'Member not found.' using errcode = 'P0002';
+  end if;
+
+  delete from public.profile_squads
+   where profile_id = p_profile_id
+     and squad_id <> all (v_units);
+
+  insert into public.profile_squads (profile_id, squad_id)
+  select p_profile_id, u
+  from unnest(v_units) as u
+  on conflict (profile_id, squad_id) do nothing;
+end;
+$$;
+
 -- Modification history of one log (from audit_log), for any reader of that log.
 create function public.get_log_history(p_log_id uuid)
 returns table (
@@ -1391,7 +1449,7 @@ begin
     ),
     'pending_approvals', case when private.is_cs_plus() then (
       select count(*) from base
-      where approved_by is not null and approval_confirmed_at is null
+      where action_taken = 'arrest' and approved_by is not null and approval_confirmed_at is null
     ) end,
     'reports_pending', (
       select count(*)
@@ -1432,12 +1490,24 @@ begin
     return jsonb_build_object('email', null);
   end if;
 
+  -- Client IP for the per-IP limit. Prefer headers set by the edge proxy
+  -- (Cloudflare overwrites cf-connecting-ip, so a client cannot spoof it);
+  -- the first X-Forwarded-For entry is client-controlled and only a fallback.
+  -- The per-username limit does not depend on the IP at all.
   begin
-    v_ip := nullif(btrim(split_part(
-      coalesce(nullif(current_setting('request.headers', true), '')::json ->> 'x-forwarded-for', ''), ',', 1)), '');
+    declare
+      v_headers json := nullif(current_setting('request.headers', true), '')::json;
+    begin
+      v_ip := coalesce(
+        nullif(btrim(v_headers ->> 'cf-connecting-ip'), ''),
+        nullif(btrim(v_headers ->> 'x-real-ip'), ''),
+        nullif(btrim(split_part(coalesce(v_headers ->> 'x-forwarded-for', ''), ',', 1)), '')
+      );
+    end;
   exception when others then
     v_ip := null;
   end;
+  v_ip := left(v_ip, 64);
 
   delete from private.login_attempts where attempted_at < now() - interval '1 day';
 
@@ -1608,6 +1678,7 @@ grant execute on function public.get_recommendation(text, uuid, public.order_typ
 grant execute on function public.confirm_approval(uuid)                                         to authenticated;
 grant execute on function public.merge_players(text, text, text)                                to authenticated;
 grant execute on function public.unmerge_player(text)                                           to authenticated;
+grant execute on function public.update_member(uuid, text, text, public.app_role, uuid, boolean, uuid[]) to authenticated;
 grant execute on function public.get_log_history(uuid)                                          to authenticated;
 grant execute on function public.dashboard_stats(text)                                          to authenticated;
 -- Sign-in page: callable before authentication
