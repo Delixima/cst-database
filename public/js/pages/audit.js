@@ -6,7 +6,7 @@ import { boot, renderShell, pageHeader } from '../layout.js';
 import {
   h, replace, field, select, input, loadingState, emptyState, errorState, pagination, link, diffView, button, flag,
 } from '../ui.js';
-import { TABLE_LABELS, AUDIT_ACTIONS, PROCEDURES, ACTIONS, TARGET_TYPES, ORDER_TYPES, STATUSES, ROLES } from '../labels.js';
+import { TABLE_LABELS, AUDIT_ACTIONS, PROCEDURES, ACTIONS, TARGET_TYPES, ORDER_TYPES, STATUSES, ROLES, UNIT_KINDS } from '../labels.js';
 import { fmtDateTime, dayBoundary } from '../format.js';
 
 const PAGE = 50;
@@ -17,10 +17,12 @@ boot(async () => {
 
   let profiles = [];
   let offenses = [];
+  let squads = [];
   try {
-    [profiles, offenses] = await Promise.all([
+    [profiles, offenses, squads] = await Promise.all([
       supabase.from('profiles').select('id, roblox_username').order('roblox_username').then(unwrap),
       supabase.from('offenses').select('id, code, name').then(unwrap),
+      supabase.from('squads').select('id, name, kind').then(unwrap),
     ]);
   } catch (err) {
     replace(main, errorState(err, () => location.reload()));
@@ -28,9 +30,11 @@ boot(async () => {
   }
   const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p.roblox_username ?? p.id.slice(0, 8)]));
   const offenseMap = Object.fromEntries(offenses.map((o) => [o.id, `${o.code} — ${o.name}`]));
+  const squadMap = Object.fromEntries(squads.map((s) => [s.id, `${s.name} (${UNIT_KINDS[s.kind] ?? s.kind})`]));
   const lookups = {
     offense_id: offenseMap, agent_id: profileMap, created_by: profileMap, approved_by: profileMap,
     approval_confirmed_by: profileMap, voided_by: profileMap, reset_by: profileMap,
+    profile_id: profileMap, squad_id: squadMap, kind: UNIT_KINDS,
     procedure: Object.fromEntries(Object.entries(PROCEDURES).map(([k, v]) => [k, v.label])),
     action_taken: ACTIONS, recommended_action: ACTIONS, default_action: ACTIONS, target_type: TARGET_TYPES,
     order_type: ORDER_TYPES, status: STATUSES, role: ROLES,
@@ -103,6 +107,8 @@ boot(async () => {
       case 'offenses': return d.code ? `${d.code} — ${d.name}` : '';
       case 'warning_resets': return `${d.target_normalized ?? ''}${d.offense_id ? ' · ' + (offenseMap[d.offense_id] ?? '') : ' · all'}`;
       case 'player_aliases': return `${d.alias_normalized ?? ''} → ${d.canonical_normalized ?? ''}`;
+      case 'profile_squads': return `${profileMap[d.profile_id] ?? '?'} → ${squadMap[d.squad_id] ?? 'deleted unit'}`;
+      case 'squads': return d.name ? `${d.name} (${UNIT_KINDS[d.kind] ?? 'Squad'})` : '';
       default: return d.name ?? '';
     }
   }

@@ -146,10 +146,13 @@ create table public.ranks (
   updated_at  timestamptz not null default now()
 );
 
--- Squads. A CS may edit logs written by members of their squad.
+-- Units a member can belong to (several at once):
+--   kind = 'squad'    : a team. A CS may edit logs written by members sharing one of their squads.
+--   kind = 'function' : a role such as Internal Affairs or Instructor. No extra rights (yet).
 create table public.squads (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(btrim(name)) between 2 and 50),
+  kind        text not null default 'squad' check (kind in ('squad', 'function')),
   active      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -161,11 +164,18 @@ create table public.profiles (
   roblox_username  text check (roblox_username is null or private.is_valid_username(roblox_username)),
   service_number   text check (service_number is null or service_number ~ '^[A-Za-z0-9-]{1,20}$'),
   rank_id          uuid references public.ranks (id) on delete set null,
-  squad_id         uuid references public.squads (id) on delete set null,
   role             public.app_role not null default 'pending',
   active           boolean not null default true,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
+);
+
+-- Squad / function memberships (many-to-many). Managed by the manager.
+create table public.profile_squads (
+  profile_id  uuid not null references public.profiles (id) on delete cascade,
+  squad_id    uuid not null references public.squads (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (profile_id, squad_id)
 );
 
 -- Offense catalog (reference table: drop-down + calculation engine).
@@ -305,7 +315,7 @@ create unique index squads_name_lower_key on public.squads (lower(name));
 create unique index profiles_roblox_username_lower_key on public.profiles (lower(roblox_username)) where roblox_username is not null;
 create unique index profiles_service_number_key on public.profiles (upper(service_number)) where service_number is not null;
 create index profiles_role_idx on public.profiles (role);
-create index profiles_squad_idx on public.profiles (squad_id);
+create index profile_squads_squad_idx on public.profile_squads (squad_id);
 
 create index offenses_procedure_idx on public.offenses (procedure, code_number);
 
@@ -367,7 +377,8 @@ as $$
   select coalesce(auth.jwt() ->> 'role', 'system') in ('system', 'service_role')
 $$;
 
--- True when p_agent belongs to the same squad as the current user.
+-- True when p_agent shares at least one active squad (kind = 'squad') with the
+-- current user. Functions (Internal Affairs, Instructor...) do not count.
 create function private.same_squad(p_agent uuid)
 returns boolean
 language sql stable security definer
@@ -375,11 +386,12 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.profiles a
-    join public.profiles me on me.id = auth.uid()
-    where a.id = p_agent
-      and a.squad_id is not null
-      and a.squad_id = me.squad_id
+    from public.profile_squads a
+    join public.profile_squads me on me.squad_id = a.squad_id and me.profile_id = auth.uid()
+    join public.squads s on s.id = a.squad_id
+    where a.profile_id = p_agent
+      and s.kind = 'squad'
+      and s.active
   )
 $$;
 
@@ -550,7 +562,7 @@ begin
   end if;
 
   insert into public.audit_log (user_id, action, table_name, row_id, old_data, new_data)
-  values (auth.uid(), tg_op, tg_table_name, coalesce(v_new ->> 'id', v_old ->> 'id'), v_old, v_new);
+  values (auth.uid(), tg_op, tg_table_name, coalesce(v_new ->> 'id', v_old ->> 'id', v_new ->> 'profile_id', v_old ->> 'profile_id'), v_old, v_new);
   return null;
 end;
 $$;
@@ -612,9 +624,9 @@ begin
     if auth.uid() is distinct from old.id then
       raise exception 'You can only edit your own profile.' using errcode = '42501';
     end if;
-    if (new.role, new.active, new.rank_id, new.squad_id, new.service_number)
-       is distinct from (old.role, old.active, old.rank_id, old.squad_id, old.service_number) then
-      raise exception 'Only the manager can change the role, status, rank, squad or service number.'
+    if (new.role, new.active, new.rank_id, new.service_number)
+       is distinct from (old.role, old.active, old.rank_id, old.service_number) then
+      raise exception 'Only the manager can change the role, status, rank or service number.'
         using errcode = '42501';
     end if;
   end if;
@@ -745,7 +757,7 @@ begin
           raise exception 'A trooper can only edit their own logs less than 24 h old.' using errcode = '42501';
         end if;
         if v_role = 'cs' and old.agent_id <> v_uid and not private.same_squad(old.agent_id) then
-          raise exception 'A CS can only edit their own logs and those of their squad.' using errcode = '42501';
+          raise exception 'A CS can only edit their own logs and those of their squads.' using errcode = '42501';
         end if;
         if new.deleted_at is distinct from old.deleted_at and v_level < 5 then
           raise exception 'Only the manager can delete or undelete a log.' using errcode = '42501';
@@ -1016,6 +1028,7 @@ create trigger audit_warning_resets after insert or update or delete on public.w
 create trigger audit_player_aliases after insert or update or delete on public.player_aliases for each row execute function private.audit_row_change();
 create trigger audit_ranks          after insert or update or delete on public.ranks          for each row execute function private.audit_row_change();
 create trigger audit_squads         after insert or update or delete on public.squads         for each row execute function private.audit_row_change();
+create trigger audit_profile_squads after insert or update or delete on public.profile_squads for each row execute function private.audit_row_change();
 
 -- -----------------------------------------------------------------------------
 -- 8. Views (security_invoker: the caller's RLS applies)
@@ -1034,7 +1047,11 @@ select
   o.max_warnings          as offense_max_warnings,
   ag.roblox_username      as agent_username,
   ag.service_number       as agent_service_number,
-  ag.squad_id             as agent_squad_id,
+  coalesce((select array_agg(ps.squad_id)
+              from public.profile_squads ps
+              join public.squads s on s.id = ps.squad_id
+             where ps.profile_id = l.agent_id and s.kind = 'squad' and s.active),
+           '{}'::uuid[])  as agent_squad_ids,
   ap.roblox_username      as approver_username,
   cf.roblox_username      as approval_confirmed_by_username,
   vb.roblox_username      as voided_by_username,
@@ -1384,6 +1401,7 @@ $$;
 -- -----------------------------------------------------------------------------
 alter table public.ranks           enable row level security;
 alter table public.squads          enable row level security;
+alter table public.profile_squads  enable row level security;
 alter table public.profiles        enable row level security;
 alter table public.offenses        enable row level security;
 alter table public.sanction_logs   enable row level security;
@@ -1410,6 +1428,14 @@ create policy squads_insert on public.squads for insert to authenticated
 create policy squads_update on public.squads for update to authenticated
   using ((select private.is_manager())) with check ((select private.is_manager()));
 create policy squads_delete on public.squads for delete to authenticated
+  using ((select private.is_manager()));
+
+-- profile_squads (memberships, managed by the manager)
+create policy profile_squads_select on public.profile_squads for select to authenticated
+  using ((select private.is_reader()) or profile_id = (select auth.uid()));
+create policy profile_squads_insert on public.profile_squads for insert to authenticated
+  with check ((select private.is_manager()));
+create policy profile_squads_delete on public.profile_squads for delete to authenticated
   using ((select private.is_manager()));
 
 -- profiles (insert by trigger only; deletion through Supabase Auth only)
@@ -1491,6 +1517,8 @@ revoke all on all functions in schema public from anon, public;
 
 -- Authenticated users: table access is then filtered by RLS.
 grant select, insert, update, delete on public.ranks, public.squads, public.offenses, public.sanction_logs to authenticated;
+grant select, insert, delete on public.profile_squads to authenticated;
+revoke update on public.profile_squads from authenticated;
 grant select, update on public.profiles to authenticated;
 revoke insert, delete on public.profiles from authenticated;
 grant select, insert on public.warning_resets to authenticated;
@@ -1534,6 +1562,11 @@ insert into public.ranks (name, short_name, sort_order) values
   ('Company Sergeant',  'CS',  20),
   ('Lieutenant',        'LT',  30),
   ('Captain',           'CPT', 40);
+
+-- Example functions (rename / add more from the Members > Squads & functions page).
+insert into public.squads (name, kind) values
+  ('Internal Affairs', 'function'),
+  ('Instructor',       'function');
 
 -- Offense catalog - normalized codes from the public CST Cuff Guide.
 insert into public.offenses

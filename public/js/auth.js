@@ -18,10 +18,16 @@ export async function getSession() {
 export async function fetchProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*, rank:ranks(id, name, short_name), squad:squads(id, name)')
+    .select('*, rank:ranks(id, name, short_name), memberships:profile_squads(squad:squads(id, name, kind, active))')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
+  if (data) {
+    // Units the member belongs to (squads and functions), and the active squad ids
+    // used for the CS edit rule.
+    data.units = (data.memberships ?? []).map((m) => m.squad).filter(Boolean);
+    data.squad_ids = data.units.filter((u) => u.kind === 'squad' && u.active).map((u) => u.id);
+  }
   return data;
 }
 
@@ -81,7 +87,7 @@ export function canEditLog(ctx, log) {
   if (ctx.lvl >= 4) return true;
   if (ctx.profile.role === 'cs') {
     return log.agent_id === ctx.user.id ||
-      (log.agent_squad_id != null && log.agent_squad_id === ctx.profile.squad_id);
+      (log.agent_squad_ids ?? []).some((id) => (ctx.profile.squad_ids ?? []).includes(id));
   }
   if (ctx.profile.role === 'trooper') {
     return log.agent_id === ctx.user.id && Date.now() - new Date(log.created_at).getTime() < 24 * 3600 * 1000;

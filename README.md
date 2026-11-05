@@ -47,7 +47,7 @@ Le site ne contient **ni règlement ni procédures**. La seule référence est l
     ├── log.html               Détail d'un log (?id=<id>), historique, annulation, impression
     ├── player.html            Annuaire des joueurs, fiche joueur (?u=<pseudo>)
     ├── offenses.html          Référentiel des infractions (gérant)
-    ├── members.html           Gestion des membres, grades, équipes (gérant)
+    ├── members.html           Gestion des membres, grades, escouades et fonctions (gérant)
     ├── audit.html             Journal d'audit (gérant)
     ├── config.js              SUPABASE_URL + SUPABASE_ANON_KEY (à remplir)
     ├── assets/                logo.webp, favicon-32.png, favicon-192.png, apple-touch-icon.png
@@ -113,6 +113,7 @@ Une base déjà installée se met à jour avec les fichiers de `supabase/migrati
 | Fichier | Contenu |
 |---|---|
 | `20261105_english_messages.sql` | Messages d'erreur de la base en anglais (recrée 11 fonctions, aucune donnée touchée) |
+| `20261106_multi_squads.sql` | Plusieurs escouades par membre + fonctions (Internal Affairs, Instructor…). Les affectations existantes sont conservées |
 
 L'interface du site est entièrement en anglais. Seule cette documentation reste en français.
 
@@ -219,7 +220,7 @@ where p.role = 'manager';
 
 4. Sur le site, cliquez sur **Vérifier à nouveau** (ou reconnectez-vous).
 
-Ensuite, tout se gère depuis **Membres** : validation des comptes, rôles, grades, matricules, équipes, désactivation. Le dernier gérant actif ne peut pas être rétrogradé ni désactivé : la base le refuse.
+Ensuite, tout se gère depuis **Membres** : validation des comptes, rôles, grades, matricules, escouades et fonctions, désactivation. Le dernier gérant actif ne peut pas être rétrogradé ni désactivé : la base le refuse.
 
 ---
 
@@ -240,7 +241,7 @@ Ensuite, tout se gère depuis **Membres** : validation des comptes, rôles, grad
 |---|---|---|
 | Gérant | `manager` | Tout : comptes, référentiel, suppression (douce et définitive), journal d'audit, remise à zéro, fusion de pseudos |
 | Officier | `officer` | Lire tout ; créer, modifier et annuler des logs ; logger au nom d'un agent ; remise à zéro ; confirmer les ⧭ |
-| Company Sergeant | `cs` | Comme trooper, plus : approuver et confirmer les ⧭, modifier les logs de son équipe |
+| Company Sergeant | `cs` | Comme trooper, plus : approuver et confirmer les ⧭, modifier les logs des membres qui partagent au moins une de ses escouades |
 | Trooper | `trooper` | Créer des logs ; modifier ses propres logs de moins de 24 h ; lire tout |
 | Lecture seule | `read_only` | Lire tout (sauf l'audit) |
 | En attente | `pending` | Aucun accès (seulement son propre profil) |
@@ -271,9 +272,10 @@ Toute la sécurité est appliquée **dans Postgres**, par RLS et des triggers. L
 
 | Table / vue | Rôle |
 |---|---|
-| `profiles` | Un profil par compte : pseudo Roblox, matricule, grade, équipe, rôle, actif |
+| `profiles` | Un profil par compte : pseudo Roblox, matricule, grade, rôle, actif |
 | `ranks` | Liste des grades (modifiable) |
-| `squads` | Équipes (portée des droits CS) |
+| `squads` | Unités, de type `squad` (escouade : portée des droits CS) ou `function` (Internal Affairs, Instructor… : informatif, aucun droit) |
+| `profile_squads` | Appartenances : un membre peut être dans plusieurs escouades et fonctions |
 | `offenses` | Référentiel des infractions (code, procédure, cible, Jail, Warnings max, action par défaut, ⧭, rapport) |
 | `sanction_logs` | Les logs. Soft delete via `deleted_at` ; suppression définitive réservée au gérant |
 | `warning_resets` | Remises à zéro (append-only) |

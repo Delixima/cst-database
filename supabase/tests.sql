@@ -105,20 +105,27 @@ insert into tests.ids (name, id) values
   ('inactive',  '00000000-0000-4000-8000-000000000009');
 
 do $$
-declare v_squad_a uuid; v_squad_b uuid;
+declare v_squad_a uuid; v_squad_b uuid; v_squad_c uuid; v_function uuid;
 begin
   perform tests.ok((select count(*) from public.profiles p join tests.ids i on i.id = p.id where p.role = 'pending') = 9,
     'setup: new accounts are created as pending');
 
   insert into public.squads (name) values ('Test Squad A') returning id into v_squad_a;
   insert into public.squads (name) values ('Test Squad B') returning id into v_squad_b;
+  insert into public.squads (name) values ('Test Squad C') returning id into v_squad_c;
+  insert into public.squads (name, kind) values ('Test Function', 'function') returning id into v_function;
+  insert into tests.ids values ('squad_a', v_squad_a), ('squad_b', v_squad_b), ('squad_c', v_squad_c), ('function', v_function);
 
   update public.profiles set role = 'manager'                        where id = tests.id('manager');
   update public.profiles set role = 'officer'                        where id = tests.id('officer');
-  update public.profiles set role = 'cs',      squad_id = v_squad_a  where id = tests.id('cs_a');
-  update public.profiles set role = 'cs',      squad_id = v_squad_b  where id = tests.id('cs_b');
-  update public.profiles set role = 'trooper', squad_id = v_squad_a  where id = tests.id('trooper_a');
-  update public.profiles set role = 'trooper', squad_id = v_squad_b  where id = tests.id('trooper_b');
+  update public.profiles set role = 'cs'      where id in (tests.id('cs_a'), tests.id('cs_b'));
+  update public.profiles set role = 'trooper' where id in (tests.id('trooper_a'), tests.id('trooper_b'));
+  -- cs_a: squad A + function | cs_b: squads B and C | trooper_a: squads A and C | trooper_b: squad B + function
+  insert into public.profile_squads (profile_id, squad_id) values
+    (tests.id('cs_a'), v_squad_a), (tests.id('cs_a'), v_function),
+    (tests.id('cs_b'), v_squad_b), (tests.id('cs_b'), v_squad_c),
+    (tests.id('trooper_a'), v_squad_a), (tests.id('trooper_a'), v_squad_c),
+    (tests.id('trooper_b'), v_squad_b), (tests.id('trooper_b'), v_function);
   update public.profiles set role = 'read_only'                      where id = tests.id('reader');
   update public.profiles set role = 'trooper', active = false        where id = tests.id('inactive');
 end $$;
@@ -324,11 +331,38 @@ do $$ begin
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'cs edit' where id = %L$q$, tests.id('log_trooper_a_arrest'))) = 1,
     'cs: edits a log of own squad');
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'cs edit' where id = %L$q$, tests.id('log_trooper_b'))) = 0,
-    'cs: cannot edit a log of another squad');
+    'cs: cannot edit a log of another squad (sharing a function does not count)');
   perform tests.throws(format($q$update public.sanction_logs set status = 'voided', void_reason = 'test' where id = %L$q$, tests.id('log_trooper_a_arrest')),
     'officers', 'cs: cannot void');
   perform tests.throws($q$insert into public.warning_resets (target_normalized, reason) values ('bad_guy_1', 'test')$q$,
     'officers|row-level security', 'cs: cannot reset warnings');
+end $$;
+reset role;
+
+select tests.login(tests.id('cs_b'));
+do $$ begin
+  perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'cs_b edit' where id = %L$q$, tests.id('log_trooper_a_arrest'))) = 1,
+    'cs: multiple squads - edits a log through a second shared squad');
+  perform tests.ok(tests.count_rows(format($q$select 1 from public.sanction_logs_expanded where id = %L and %L = any(agent_squad_ids)$q$,
+    tests.id('log_trooper_a_arrest'), tests.id('squad_c'))) = 1, 'view: agent_squad_ids lists every squad of the agent');
+  perform tests.ok(tests.count_rows(format($q$select 1 from public.sanction_logs_expanded where id = %L and %L = any(agent_squad_ids)$q$,
+    tests.id('log_trooper_b'), tests.id('function'))) = 0, 'view: functions are not listed in agent_squad_ids');
+end $$;
+reset role;
+
+select tests.login(tests.id('trooper_a'));
+do $$ begin
+  perform tests.ok(tests.count_rows('select 1 from public.profile_squads') >= 8, 'memberships: readable by members');
+  perform tests.throws(format($q$insert into public.profile_squads (profile_id, squad_id) values (%L, %L)$q$, tests.id('trooper_a'), tests.id('squad_b')),
+    'row-level security', 'memberships: a trooper cannot join a squad');
+  perform tests.ok(tests.affected(format($q$delete from public.profile_squads where profile_id = %L$q$, tests.id('trooper_a'))) = 0,
+    'memberships: a trooper cannot leave a squad');
+end $$;
+reset role;
+
+select tests.login(tests.id('pending'));
+do $$ begin
+  perform tests.ok(tests.count_rows('select 1 from public.profile_squads') = 0, 'memberships: pending sees none');
 end $$;
 reset role;
 
@@ -372,6 +406,10 @@ do $$
 declare n integer; l public.sanction_logs%rowtype;
 begin
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') > 20, 'manager: reads audit_log');
+  insert into public.profile_squads (profile_id, squad_id) values (tests.id('reader'), tests.id('squad_a')), (tests.id('reader'), tests.id('function'));
+  perform tests.ok(tests.count_rows(format('select 1 from public.profile_squads where profile_id = %L', tests.id('reader'))) = 2, 'manager: adds a member to several units');
+  perform tests.ok(tests.affected(format('delete from public.profile_squads where profile_id = %L', tests.id('reader'))) = 2, 'manager: removes memberships');
+  perform tests.ok(tests.count_rows($q$select 1 from public.audit_log where table_name = 'profile_squads' and row_id is not null$q$) >= 2, 'audit: memberships are logged');
   perform tests.throws('delete from public.audit_log', 'permission denied|append-only', 'manager: cannot delete audit entries');
   perform tests.throws('update public.audit_log set action = ''INSERT''', 'permission denied|append-only', 'manager: cannot alter audit entries');
 

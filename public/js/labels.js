@@ -94,12 +94,16 @@ export const FIELD_LABELS = {
   default_action: 'Default action', requires_cs_approval: 'CS approval (⧭)', report_required: 'Report required',
   reason: 'Reason', reset_by: 'By', logs_affected: 'Logs affected', alias_normalized: 'Alias',
   canonical_normalized: 'Main username', note: 'Note', short_name: 'Abbreviation', sort_order: 'Order',
+  kind: 'Type', profile_id: 'Member',
 };
 
 export const TABLE_LABELS = {
   sanction_logs: 'Logs', profiles: 'Members', offenses: 'Offenses', warning_resets: 'Warning resets',
-  player_aliases: 'Aliases', ranks: 'Ranks', squads: 'Squads',
+  player_aliases: 'Aliases', ranks: 'Ranks', squads: 'Squads & functions', profile_squads: 'Memberships',
 };
+
+/** Unit types: squads give CS edit rights over their members' logs, functions do not. */
+export const UNIT_KINDS = { squad: 'Squad', function: 'Function' };
 
 export const AUDIT_ACTIONS = { INSERT: 'Created', UPDATE: 'Updated', DELETE: 'Deleted' };
 
