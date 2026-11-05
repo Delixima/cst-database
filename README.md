@@ -131,8 +131,16 @@ Dans **Authentication** :
    - **Redirect URLs** : ajoutez
      - `https://cst-sanctions.netlify.app/index.html`
      - `http://localhost:8080/index.html` (pour tester en local)
-3. (Optionnel) **Emails** : traduisez les modèles *Confirm signup* et *Reset password* en français.
-4. (Recommandé en production) **SMTP Settings** : configurez votre propre SMTP. Le SMTP intégré de Supabase est limité à quelques emails par heure.
+3. (Recommandé en production) **Emails → SMTP Settings** : configurez votre propre SMTP. Le SMTP intégré de Supabase est limité à quelques emails par heure, l'expéditeur reste « Supabase Auth », et **les modèles ne sont pas modifiables sans SMTP personnalisé**.
+4. (Après le SMTP) **Emails → Templates** : collez les modèles aux couleurs CST du dossier `supabase/email-templates/` (le sujet est indiqué en commentaire en haut de chaque fichier) :
+
+   | Modèle Supabase | Fichier | Sujet |
+   |---|---|---|
+   | Confirm sign up | `confirm-signup.html` | CST — Confirm your account |
+   | Reset password | `reset-password.html` | CST — Reset your password |
+   | Change email address | `change-email.html` | CST — Confirm your new email address |
+
+   Pensez ensuite à mettre à jour l'écran « Check your email » (`public/js/pages/login.js`, fonction `checkInboxView`), qui cite l'expéditeur et le sujet de l'email.
 
 À l'inscription, le site enregistre le pseudo Roblox dans les métadonnées. Un trigger crée alors le profil avec le rôle **en attente** (`pending`). Ce compte ne voit **rien** tant que le gérant ne l'a pas validé.
 

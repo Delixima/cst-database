@@ -1,0 +1,63 @@
+<!-- Supabase > Authentication > Emails > Confirm signup
+     Subject: CST — Confirm your account -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>CST — Confirm your account</title>
+</head>
+<body style="margin:0;padding:0;background-color:#131518;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#131518" style="background-color:#131518;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background-color:#1f2328;border:1px solid #353c45;border-top:3px solid #c8102e;border-radius:6px;">
+          <tr>
+            <td align="center" style="padding:28px 28px 8px;">
+              <img src="https://tge-cst-dashboard.netlify.app/assets/apple-touch-icon.png" width="72" height="72" alt="CST" style="display:block;border-radius:50%;border:1px solid #c8102e;">
+              <div style="margin-top:14px;font-family:Consolas,'Courier New',monospace;font-size:22px;font-weight:bold;letter-spacing:6px;color:#dde1e6;">CST</div>
+              <div style="font-family:Consolas,'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#7f8893;">Coruscant Shock Troopers</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px 0;font-family:Arial,Helvetica,sans-serif;color:#dde1e6;">
+              <h1 style="margin:0 0 14px;font-family:Consolas,'Courier New',monospace;font-size:18px;letter-spacing:2px;text-transform:uppercase;color:#dde1e6;">Confirm your account</h1>
+              <p style="margin:0 0 14px;font-size:15px;line-height:22px;color:#aab2bc;">
+                Welcome to the CST sanction registry. To activate your account, confirm that this email address belongs to you:
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:10px 28px 22px;">
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 26px;background-color:#c8102e;color:#ffffff;font-family:Consolas,'Courier New',monospace;font-size:14px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;text-decoration:none;border-radius:4px;">Confirm my email</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 8px;font-family:Arial,Helvetica,sans-serif;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#181b1f;border:1px solid #353c45;border-radius:4px;">
+                <tr>
+                  <td style="padding:14px 16px;font-size:14px;line-height:21px;color:#aab2bc;">
+                    <strong style="color:#e5a53b;">What happens next</strong><br>
+                    1. Click the button above.<br>
+                    2. Sign in with your email or your Roblox username.<br>
+                    3. The CST manager reviews and approves your account. Until then you will see an "Account pending" screen.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px 26px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#7f8893;">
+              Button not working? Copy this link into your browser:<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#3fd0e0;word-break:break-all;">{{ .ConfirmationURL }}</a><br><br>
+              You did not create an account? Ignore this email: nothing will happen.
+            </td>
+          </tr>
+        </table>
+        <div style="padding:16px;font-family:Consolas,'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#5c646e;">CST — internal sanction registry · Restricted access</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
