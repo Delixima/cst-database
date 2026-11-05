@@ -148,7 +148,7 @@ export function errorMessage(err) {
   if (code === 'PGRST116') return 'Item not found or not accessible.';
   if (code === 'PGRST301' || /JWT expired/i.test(msg)) return 'Session expired: please sign in again.';
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Cannot reach the server. Check your connection.';
-  if (/Invalid login credentials/i.test(msg)) return 'Incorrect email or password.';
+  if (/Invalid login credentials/i.test(msg)) return 'Incorrect email, username or password.';
   if (/Email not confirmed/i.test(msg)) return 'Email address not confirmed: click the link you received by email.';
   if (/User already registered/i.test(msg)) return 'An account already exists with this email.';
   if (/Password should be at least/i.test(msg)) return 'Password too short.';

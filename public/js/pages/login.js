@@ -51,26 +51,50 @@ function authView(initialTab = 'login', notice = null) {
   select(initialTab);
 }
 
+/**
+ * Supabase Auth signs in with an email only. For a Roblox username, the
+ * database returns the matching email only if the password is correct
+ * (rate-limited), then we sign in with that email as usual.
+ */
+async function resolveEmail(identifier, password) {
+  if (identifier.includes('@')) return { email: identifier };
+  if (!USERNAME_RE.test(identifier)) return { error: 'Enter your email or your Roblox username (3 to 20 characters: letters, digits, _).' };
+  const { data, error } = await supabase.rpc('resolve_login_email', { p_identifier: identifier, p_password: password });
+  if (error) return { error };
+  if (data?.locked) return { error: 'Too many failed attempts for this username. Try again in 15 minutes, or sign in with your email.' };
+  if (!data?.email) return { error: 'Incorrect username or password.' };
+  return { email: data.email };
+}
+
 function loginForm() {
-  const email = input({ type: 'email', autocomplete: 'email', required: true, maxlength: 254 });
+  const identifier = input({ type: 'text', autocomplete: 'username', required: true, maxlength: 254, spellcheck: 'false', autocapitalize: 'none' });
   const password = input({ type: 'password', autocomplete: 'current-password', required: true });
   const err = formError();
   const submit = h('button', { type: 'submit', class: 'btn btn-primary btn-block' }, 'Sign in');
   const form = h('form', { class: 'auth-form', novalidate: true },
-    field('Email', email, null, { required: true }),
+    field('Email or Roblox username', identifier, null, { required: true }),
     field('Password', password, null, { required: true }),
     err, submit,
-    h('button', { type: 'button', class: 'link-btn', onClick: () => forgotView(email.value) }, 'Forgot your password?'));
+    h('button', {
+      type: 'button', class: 'link-btn',
+      onClick: () => forgotView(identifier.value.includes('@') ? identifier.value : ''),
+    }, 'Forgot your password?'));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.hidden = true;
-    if (!email.value.trim() || !password.value) return showError(err, 'Enter your email and password.');
+    const id = identifier.value.trim();
+    if (!id || !password.value) return showError(err, 'Enter your email or Roblox username, and your password.');
     submit.disabled = true;
-    const { error } = await supabase.auth.signInWithPassword({ email: email.value.trim(), password: password.value });
-    submit.disabled = false;
-    if (error) return showError(err, error);
-    await route();
+    try {
+      const resolved = await resolveEmail(id, password.value);
+      if (resolved.error) return showError(err, resolved.error);
+      const { error } = await supabase.auth.signInWithPassword({ email: resolved.email, password: password.value });
+      if (error) return showError(err, error);
+      await route();
+    } finally {
+      submit.disabled = false;
+    }
   });
   return form;
 }

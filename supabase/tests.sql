@@ -128,6 +128,10 @@ begin
     (tests.id('trooper_b'), v_squad_b), (tests.id('trooper_b'), v_function);
   update public.profiles set role = 'read_only'                      where id = tests.id('reader');
   update public.profiles set role = 'trooper', active = false        where id = tests.id('inactive');
+
+  -- Password for the username sign-in tests (bcrypt, like Supabase Auth)
+  update auth.users set encrypted_password = extensions.crypt('Correct-Horse-1', extensions.gen_salt('bf', 4))
+  where id = tests.id('trooper_a');
 end $$;
 
 -- -----------------------------------------------------------------------------
@@ -139,6 +143,27 @@ do $$ begin
   perform tests.throws('select * from public.offenses', 'permission denied', 'anon: cannot read offenses');
   perform tests.throws('select * from public.profiles', 'permission denied', 'anon: cannot read profiles');
   perform tests.throws('select public.dashboard_stats()', 'permission denied', 'anon: cannot call dashboard_stats');
+
+  -- Sign in with a Roblox username
+  perform tests.ok(public.resolve_login_email('TEST_TROOPER_A', 'Correct-Horse-1') ->> 'email' = 'test-trooper-a@cst.test',
+    'login: username + correct password returns the email (case-insensitive)');
+  perform tests.ok(public.resolve_login_email('Test_Trooper_A', 'wrong-password') ->> 'email' is null,
+    'login: wrong password returns no email');
+  perform tests.ok(public.resolve_login_email('Test_Trooper_B', 'Correct-Horse-1') ->> 'email' is null,
+    'login: another member''s username with this password returns no email');
+  perform tests.ok(public.resolve_login_email('Nobody_Here', 'Correct-Horse-1') ->> 'email' is null,
+    'login: unknown username returns no email');
+  perform tests.ok(public.resolve_login_email('bad name!', 'x') ->> 'email' is null,
+    'login: invalid identifier returns no email');
+  -- 4 failures, then a success resets the counter
+  perform public.resolve_login_email('Test_Trooper_A', 'nope') from generate_series(1, 3);
+  perform tests.ok(public.resolve_login_email('Test_Trooper_A', 'Correct-Horse-1') ->> 'email' is not null,
+    'login: a success after 4 failures still works and resets the counter');
+  -- 5 failures lock the username, even with the right password
+  perform public.resolve_login_email('Test_Trooper_A', 'nope') from generate_series(1, 5);
+  perform tests.ok((public.resolve_login_email('Test_Trooper_A', 'Correct-Horse-1') ->> 'locked')::boolean,
+    'login: 5 failures in 15 minutes lock the username');
+  perform tests.throws('select * from private.login_attempts', 'permission denied', 'anon: cannot read login attempts');
 end $$;
 reset role;
 
