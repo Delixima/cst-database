@@ -15,7 +15,7 @@ boot(async () => {
   const ctx = await requireAuth({ minLevel: 1 });
   const main = renderShell(ctx, 'dashboard');
 
-  const actions = ctx.perms.write ? [h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ New log')] : [];
+  const actions = ctx.perms.write ? [h('a', { class: 'btn btn-primary', href: 'log-new' }, '+ New log')] : [];
   const header = pageHeader('Dashboard', `Welcome, ${ctx.profile.roblox_username ?? 'trooper'}.`, ...actions);
   const body = h('div', { class: 'stack' }, loadingState('Loading statistics…'));
   replace(main, header, body);
@@ -87,13 +87,13 @@ boot(async () => {
       label: `${o.code} — ${o.name}`,
       value: o.total,
       tone: 'danger',
-      href: link('logs.html', { offense: o.code, from: monthStartValue() }),
+      href: link('logs', { offense: o.code, from: monthStartValue() }),
     }));
 
     const agents = stats.agents_month ?? [];
     const agentTable = agents.length
       ? table([
-        { label: 'Agent', render: (r) => h('a', { href: link('logs.html', { agent: r.id, from: monthStartValue() }) }, r.roblox_username ?? '—') },
+        { label: 'Agent', render: (r) => h('a', { href: link('logs', { agent: r.id, from: monthStartValue() }) }, r.roblox_username ?? '—') },
         { label: 'Logs', className: 'right cell-mono', render: (r) => String(r.total) },
         { label: 'Arr.', className: 'right cell-mono', render: (r) => String(r.arrests) },
         { label: 'Warn.', className: 'right cell-mono', render: (r) => String(r.warnings) },
@@ -106,21 +106,21 @@ boot(async () => {
       card('Activity by agent — month', agentTable));
 
     const recentCard = card(null,
-      h('h2', { class: 'card-title' }, 'Latest logs', h('a', { href: 'logs.html' }, 'View all →')),
+      h('h2', { class: 'card-title' }, 'Latest logs', h('a', { href: 'logs' }, 'View all →')),
       recent.length
         ? table([
           { label: 'No.', className: 'cell-mono nowrap', render: (r) => r.log_number },
           { label: 'Date', className: 'nowrap', render: (r) => h('span', { title: fmtDateTime(r.occurred_at) }, fmtRelative(r.occurred_at)) },
-          { label: 'Target', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
+          { label: 'Target', className: 'cell-strong', render: (r) => h('a', { href: link('player', { u: r.target_normalized }) }, r.target_username) },
           { label: 'Procedure', render: (r) => procedureBadge(r.procedure) },
           { label: 'Offense', className: 'cell-mono', render: (r) => [r.offense_code, r.offense_requires_cs_approval ? approvalMark() : null] },
           { label: 'Action', render: (r) => [actionBadge(r.action_taken, r.warning_number, r.offense_max_warnings), r.is_override ? flag('Override', 'warn') : null] },
           { label: 'Agent', render: (r) => r.agent_username ?? '—' },
         ], recent, {
-          onRowClick: (r) => { location.href = link('log.html', { id: r.id }); },
+          onRowClick: (r) => { location.href = link('log', { id: r.id }); },
           rowClass: (r) => (r.status === 'voided' ? 'row-voided' : ''),
         })
-        : emptyState('No logs yet.', ctx.perms.write ? h('a', { class: 'btn btn-primary', href: 'log-new.html' }, 'Create the first log') : null));
+        : emptyState('No logs yet.', ctx.perms.write ? h('a', { class: 'btn btn-primary', href: 'log-new' }, 'Create the first log') : null));
 
     const blocks = [statRow];
 
@@ -128,7 +128,7 @@ boot(async () => {
       const pendingCard = card(`⧭ logs awaiting approval confirmation (${pending.length})`,
         pending.length
           ? table([
-            { label: 'No.', className: 'cell-mono nowrap', render: (r) => h('a', { href: link('log.html', { id: r.id }) }, r.log_number) },
+            { label: 'No.', className: 'cell-mono nowrap', render: (r) => h('a', { href: link('log', { id: r.id }) }, r.log_number) },
             { label: 'Date', className: 'nowrap', render: (r) => fmtDateTime(r.occurred_at) },
             { label: 'Target', className: 'cell-strong', render: (r) => r.target_username },
             { label: 'Offense', render: (r) => [procedureBadge(r.procedure), ' ', h('span', { class: 'cell-mono' }, r.offense_code), approvalMark()] },

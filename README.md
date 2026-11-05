@@ -130,8 +130,8 @@ Dans **Authentication** :
 2. **URL Configuration** :
    - **Site URL** : l'URL Netlify finale, ex. `https://cst-sanctions.netlify.app`.
    - **Redirect URLs** : ajoutez
-     - `https://cst-sanctions.netlify.app/index.html`
-     - `http://localhost:8080/index.html` (pour tester en local)
+     - `https://cst-sanctions.netlify.app/` (le site utilise des adresses sans `.html` : la page de connexion est la racine `/`)
+     - `http://localhost:8080/` (pour tester en local)
 3. (Recommandé en production) **Emails → SMTP Settings** : configurez votre propre SMTP. Le SMTP intégré de Supabase est limité à quelques emails par heure, l'expéditeur reste « Supabase Auth », et **les modèles ne sont pas modifiables sans SMTP personnalisé**.
 4. (Après le SMTP) **Emails → Templates** : collez les modèles aux couleurs CST du dossier `supabase/email-templates/` (le sujet est indiqué en commentaire en haut de chaque fichier) :
 
@@ -169,17 +169,17 @@ export const PAGE_SIZE = 25;
 
 ## 7. Tester en local
 
-Les modules ES exigent un serveur HTTP : ouvrir le fichier directement ne fonctionne pas. Depuis la racine du projet, lancez l'une de ces commandes :
+Les modules ES exigent un serveur HTTP : ouvrir le fichier directement ne fonctionne pas. Le site utilise des adresses sans `.html` (`/logs`, `/log?id=…`) : il faut donc un serveur qui sait servir `logs.html` quand on demande `/logs`. C'est le cas de `serve`, depuis la racine du projet :
 
 ```bash
 npx serve public -l 8080
 ```
 
-```bash
-python -m http.server 8080 --directory public
-```
+Ouvrez ensuite <http://localhost:8080/>.
 
-Ouvrez ensuite <http://localhost:8080/index.html>.
+> `python -m http.server` ne gère pas ces adresses : les liens internes y donneraient des erreurs 404.
+
+Sur Netlify, ces adresses fonctionnent toutes seules. `netlify.toml` redirige en plus les anciennes adresses en `.html` (favoris, liens partagés, emails déjà envoyés) vers les nouvelles, en conservant les paramètres (`?id=…`).
 
 ---
 

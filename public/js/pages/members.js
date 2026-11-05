@@ -50,7 +50,7 @@ boot(async () => {
     const tabBar = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([key, label, count]) =>
       h('button', {
         type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(tab === key),
-        onClick: () => { tab = key; history.replaceState(null, '', `members.html?tab=${key}`); render(); },
+        onClick: () => { tab = key; history.replaceState(null, '', `members?tab=${key}`); render(); },
       }, label, count ? h('span', { class: 'count' }, String(count)) : null)));
 
     let content;

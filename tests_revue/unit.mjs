@@ -83,16 +83,28 @@ eq(ui.safeUrl('data:text/html,x'), '#', 'safeUrl: data blocked');
 eq(ui.safeUrl('//evil.com/x.html'), '#', 'safeUrl: protocol-relative blocked');
 eq(ui.safeUrl('http://evil.com'), '#', 'safeUrl: http blocked');
 eq(ui.safeUrl('https://ok.com/a'), 'https://ok.com/a', 'safeUrl: https allowed');
-eq(ui.safeUrl('log.html?id=1&x=2'), 'log.html?id=1&x=2', 'safeUrl: internal page allowed');
+eq(ui.safeUrl('log?id=1&x=2'), 'log?id=1&x=2', 'safeUrl: clean internal page allowed');
+eq(ui.safeUrl('log.html?id=1&x=2'), 'log.html?id=1&x=2', 'safeUrl: legacy .html page allowed');
+eq(ui.safeUrl('/'), '/', 'safeUrl: root (sign-in) allowed');
+eq(ui.safeUrl('/?next=logs'), '/?next=logs', 'safeUrl: root with query allowed');
+eq(ui.safeUrl('/evil.com'), '#', 'safeUrl: path that looks like a domain blocked');
+eq(ui.safeUrl('//evil.com'), '#', 'safeUrl: protocol-relative without path blocked');
+eq(ui.safeUrl('logs/../../x'), '#', 'safeUrl: traversal blocked');
 eq(ui.safeUrl('assets/logo.webp'), 'assets/logo.webp', 'safeUrl: asset allowed');
-eq(ui.link('player.html', { u: 'a&b=c', empty: '', nil: null }), 'player.html?u=a%26b%3Dc', 'link: values encoded, empties dropped');
+eq(ui.link('player', { u: 'a&b=c', empty: '', nil: null }), 'player?u=a%26b%3Dc', 'link: values encoded, empties dropped');
 
-eq(safeNext('/logs.html?q=x'), 'logs.html?q=x', 'safeNext: internal page kept');
-eq(safeNext('https://evil.com'), 'dashboard.html', 'safeNext: external URL refused');
-eq(safeNext('//evil.com/a.html'), 'dashboard.html', 'safeNext: protocol-relative refused');
-eq(safeNext('index.html'), 'dashboard.html', 'safeNext: index loops avoided');
-eq(safeNext(null), 'dashboard.html', 'safeNext: null');
-eq(safeNext('/logs.html?q=x#frag'), 'dashboard.html', 'safeNext: fragment refused');
+eq(safeNext('/logs?q=x'), 'logs?q=x', 'safeNext: clean internal page kept');
+eq(safeNext('logs?q=x'), 'logs?q=x', 'safeNext: relative clean page kept');
+eq(safeNext('/logs.html?q=x'), 'logs?q=x', 'safeNext: legacy .html normalised to clean URL');
+eq(safeNext('https://evil.com'), 'dashboard', 'safeNext: external URL refused');
+eq(safeNext('//evil.com/a.html'), 'dashboard', 'safeNext: protocol-relative refused');
+eq(safeNext('index.html'), 'dashboard', 'safeNext: index loops avoided');
+eq(safeNext('index'), 'dashboard', 'safeNext: clean index loops avoided');
+eq(safeNext('/'), 'dashboard', 'safeNext: root -> dashboard');
+eq(safeNext(''), 'dashboard', 'safeNext: empty -> dashboard');
+eq(safeNext(null), 'dashboard', 'safeNext: null');
+eq(safeNext('/logs?q=x#frag'), 'dashboard', 'safeNext: fragment refused');
+eq(safeNext('/logs?q=x y'), 'dashboard', 'safeNext: whitespace refused');
 
 // ---------------------------------------------------------------- error messages
 eq(ui.errorMessage({ code: '42501', message: 'new row violates row-level security policy for table "x"' }), 'Action not allowed for your role.', 'error: RLS');

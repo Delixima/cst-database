@@ -1,4 +1,4 @@
-// New log / edit log (log-new.html?edit=<uuid>).
+// New log / edit log (log-new?edit=<uuid>).
 // Smart form: player autocomplete, live warning recommendation from the
 // database, ⧭ approver, HICOM/ISB orders, evidence URLs with previews.
 // The database recomputes everything on save; this page only guides the agent.
@@ -60,7 +60,7 @@ boot(async () => {
     if (!canEditLog(ctx, existing)) {
       replace(main, pageHeader(`Edit ${existing.log_number}`),
         errorState('Your role cannot edit this log (a trooper can only edit their own logs less than 24 h old).'),
-        h('p', null, h('a', { href: link('log.html', { id: existing.id }) }, '← Back to the log')));
+        h('p', null, h('a', { href: link('log', { id: existing.id }) }, '← Back to the log')));
       return;
     }
   }
@@ -204,7 +204,7 @@ boot(async () => {
 
   const formError = h('div', { class: 'form-error', role: 'alert', hidden: true });
   const submitBtn = h('button', { type: 'submit', class: 'btn btn-primary' }, existing ? 'Save changes' : 'Save log');
-  const cancelHref = existing ? link('log.html', { id: existing.id }) : 'dashboard.html';
+  const cancelHref = existing ? link('log', { id: existing.id }) : 'dashboard';
 
   const form = h('form', { class: 'card', novalidate: true },
     h('div', { class: 'form-grid' },
@@ -338,7 +338,7 @@ boot(async () => {
         rec.last_reset_at ? h('li', null, h('span', null, 'Last warning reset'), h('strong', null, fmtDateTime(rec.last_reset_at))) : null),
       h('div', { class: 'reco-alerts' }, alerts),
       h('p', { class: 'small', style: { marginTop: '12px' } },
-        h('a', { href: link('player.html', { u: rec.target_normalized }), target: '_blank', rel: 'noopener' }, 'Open the player record ↗')));
+        h('a', { href: link('player', { u: rec.target_normalized }), target: '_blank', rel: 'noopener' }, 'Open the player record ↗')));
   }
 
   async function refreshRec() {
@@ -509,7 +509,7 @@ boot(async () => {
       } else {
         id = unwrap(await supabase.from('sanction_logs').insert(payload).select('id').single()).id;
       }
-      location.href = link('log.html', { id, saved: existing ? 'updated' : 'created' });
+      location.href = link('log', { id, saved: existing ? 'updated' : 'created' });
     } catch (err) {
       formError.textContent = errorMessage(err);
       formError.hidden = false;

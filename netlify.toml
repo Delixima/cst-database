@@ -43,12 +43,64 @@
   [headers.values]
     Cache-Control = "public, max-age=604800"
 
-# Root and unknown paths go to the login page.
+# Clean URLs: Netlify serves /logs from logs.html. Old links ending in .html
+# (bookmarks, shared links, emails already sent) are redirected to the clean
+# address; the query string (?id=…) is kept.
 [[redirects]]
-  from = "/"
-  to = "/index.html"
-  status = 200
+  from = "/index.html"
+  to = "/"
+  status = 301
+  force = true
 
+[[redirects]]
+  from = "/dashboard.html"
+  to = "/dashboard"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/log-new.html"
+  to = "/log-new"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/logs.html"
+  to = "/logs"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/log.html"
+  to = "/log"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/player.html"
+  to = "/player"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/offenses.html"
+  to = "/offenses"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/members.html"
+  to = "/members"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/audit.html"
+  to = "/audit"
+  status = 301
+  force = true
+
+# Unknown paths show the sign-in page with a 404 status.
 [[redirects]]
   from = "/*"
   to = "/index.html"

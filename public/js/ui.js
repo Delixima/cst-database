@@ -8,7 +8,7 @@ const PROP_KEYS = new Set(['value', 'checked', 'selected', 'disabled', 'hidden',
 
 /**
  * Creates an element.
- *   h('a', { class: 'btn', href: 'x.html', onClick: fn }, 'Texte', childNode)
+ *   h('a', { class: 'btn', href: 'logs', onClick: fn }, 'Text', childNode)
  * Strings are always inserted as text nodes.
  */
 export function h(tag, props, ...children) {
@@ -61,13 +61,15 @@ export function replace(el, ...children) {
 export function safeUrl(u) {
   const s = String(u ?? '');
   if (/^https:\/\//i.test(s)) return s;
-  if (/^(\.{0,2}\/)?[a-z0-9_-]+\.html([?#].*)?$/i.test(s)) return s;
+  // Internal pages: "logs", "log?id=…", "/" (sign-in) and legacy "logs.html"
+  if (/^(\.{0,2}\/)?[a-z0-9_-]+(\.html)?([?#].*)?$/i.test(s)) return s;
+  if (/^\/([?#].*)?$/.test(s)) return s;
   if (/^(assets|css|js)\/[a-z0-9_./-]+$/i.test(s)) return s;
   if (s.startsWith('#') || s.startsWith('?')) return s;
   return '#';
 }
 
-/** Builds "page.html?a=1&b=2" with encoded values. */
+/** Builds "page?a=1&b=2" with encoded values. */
 export function link(page, params = {}) {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== '') sp.set(k, v);

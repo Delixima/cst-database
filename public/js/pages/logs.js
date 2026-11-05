@@ -87,7 +87,7 @@ boot(async () => {
       field('Flag', flagSel),
       deletedBox ? h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Manager'), deletedBox) : null),
     h('div', { class: 'form-actions' },
-      button('Reset', () => { location.href = 'logs.html'; }, 'ghost'),
+      button('Reset', () => { location.href = 'logs'; }, 'ghost'),
       h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filter')));
 
   filtersForm.addEventListener('submit', (e) => {
@@ -104,7 +104,7 @@ boot(async () => {
   exportBtn.addEventListener('click', () => withBusy(exportBtn, exportCsv));
   const results = h('div', { class: 'stack' });
   const actions = [exportBtn];
-  if (ctx.perms.write) actions.unshift(h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ New log'));
+  if (ctx.perms.write) actions.unshift(h('a', { class: 'btn btn-primary', href: 'log-new' }, '+ New log'));
   replace(main, pageHeader('Sanction logs', 'Search across every recorded sanction.', ...actions), filtersForm, results);
 
   // ------------------------------------------------------------ query
@@ -147,7 +147,7 @@ boot(async () => {
       deleted: f.deleted ? '1' : '', sort: f.sort === 'occurred_at' ? '' : f.sort, asc: f.asc ? '1' : '',
       page: f.page > 1 ? f.page : '',
     };
-    history.replaceState(null, '', link('logs.html', params));
+    history.replaceState(null, '', link('logs', params));
   }
 
   async function load() {
@@ -188,7 +188,7 @@ boot(async () => {
       table([
         { label: 'No.', sort: 'log_number', className: 'cell-mono nowrap', render: (r) => r.log_number },
         { label: 'Incident date', sort: 'occurred_at', className: 'nowrap', render: (r) => fmtDateTime(r.occurred_at) },
-        { label: 'Target', sort: 'target', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
+        { label: 'Target', sort: 'target', className: 'cell-strong', render: (r) => h('a', { href: link('player', { u: r.target_normalized }) }, r.target_username) },
         { label: 'Procedure', render: (r) => procedureBadge(r.procedure) },
         { label: 'Offense', sort: 'offense', render: (r) => [h('span', { class: 'cell-mono', title: r.offense_name }, r.offense_code), r.offense_requires_cs_approval ? approvalMark() : null] },
         { label: 'Action', sort: 'action', render: (r) => actionBadge(r.action_taken, r.warning_number, r.offense_max_warnings) },
@@ -199,7 +199,7 @@ boot(async () => {
       ], rows, {
         sort: { column: f.sort, ascending: f.asc },
         onSort,
-        onRowClick: (r) => { location.href = link('log.html', { id: r.id }); },
+        onRowClick: (r) => { location.href = link('log', { id: r.id }); },
         rowClass: (r) => (r.deleted_at ? 'row-deleted' : r.status === 'voided' ? 'row-voided' : (!r.counts_for_warnings ? 'row-reset' : '')),
       }),
       pagination({ page: f.page, pageSize: PAGE_SIZE, total, onPage: (p) => { f.page = p; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }));

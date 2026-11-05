@@ -5,17 +5,17 @@ import { Halt, ConfigError, signOut } from './auth.js';
 import { qs } from './format.js';
 
 const NAV = [
-  { key: 'dashboard', href: 'dashboard.html', label: 'Dashboard', min: 1 },
-  { key: 'new',       href: 'log-new.html',   label: 'New log',         min: 2 },
-  { key: 'logs',      href: 'logs.html',      label: 'Logs',            min: 1 },
-  { key: 'players',   href: 'player.html',    label: 'Players',         min: 1 },
-  { key: 'offenses',  href: 'offenses.html',  label: 'Offenses',        min: 5 },
-  { key: 'members',   href: 'members.html',   label: 'Members',         min: 5 },
-  { key: 'audit',     href: 'audit.html',     label: 'Audit',           min: 5 },
+  { key: 'dashboard', href: 'dashboard', label: 'Dashboard', min: 1 },
+  { key: 'new',       href: 'log-new',   label: 'New log',         min: 2 },
+  { key: 'logs',      href: 'logs',      label: 'Logs',            min: 1 },
+  { key: 'players',   href: 'player',    label: 'Players',         min: 1 },
+  { key: 'offenses',  href: 'offenses',  label: 'Offenses',        min: 5 },
+  { key: 'members',   href: 'members',   label: 'Members',         min: 5 },
+  { key: 'audit',     href: 'audit',     label: 'Audit',           min: 5 },
 ];
 
 export function brand() {
-  return h('a', { class: 'brand', href: 'dashboard.html' },
+  return h('a', { class: 'brand', href: 'dashboard' },
     h('img', { src: 'assets/logo.webp', alt: '', width: 36, height: 36 }),
     h('span', { class: 'brand-text' }, h('strong', null, 'CST'), h('small', null, 'Sanction registry')));
 }

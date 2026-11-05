@@ -1,4 +1,4 @@
-// Players: directory (player.html) and player record (player.html?u=<normalized>).
+// Players: directory (player) and player record (player?u=<normalized>).
 // There is no players table: everything is aggregated from the logs by normalized username.
 
 import { supabase, unwrap } from '../supabase.js';
@@ -49,7 +49,7 @@ async function directory(ctx, main) {
   });
 
   async function load() {
-    history.replaceState(null, '', link('player.html', { q: state.q, page: state.page > 1 ? state.page : '' }));
+    history.replaceState(null, '', link('player', { q: state.q, page: state.page > 1 ? state.page : '' }));
     replace(results, loadingState('Loading players…'));
     try {
       let q = supabase.from('players').select('*', { count: 'exact' });
@@ -65,7 +65,7 @@ async function directory(ctx, main) {
         const al = await supabase.from('player_aliases').select('alias_normalized, canonical_normalized').ilike('alias_normalized', `%${escapeLike(clean)}%`).limit(5);
         if (al.data?.length) {
           aliasHint = h('div', { class: 'notice' }, 'Former usernames found: ',
-            al.data.map((a, i) => [i ? ', ' : '', a.alias_normalized, ' → ', h('a', { href: link('player.html', { u: a.canonical_normalized }) }, a.canonical_normalized)]));
+            al.data.map((a, i) => [i ? ', ' : '', a.alias_normalized, ' → ', h('a', { href: link('player', { u: a.canonical_normalized }) }, a.canonical_normalized)]));
         }
       }
 
@@ -75,7 +75,7 @@ async function directory(ctx, main) {
       }
       replace(results, aliasHint,
         table([
-          { label: 'Username', className: 'cell-strong', render: (p) => h('a', { href: link('player.html', { u: p.target_normalized }) }, p.last_username) },
+          { label: 'Username', className: 'cell-strong', render: (p) => h('a', { href: link('player', { u: p.target_normalized }) }, p.last_username) },
           { label: 'Type', render: (p) => TARGET_TYPES[p.last_target_type] ?? '—' },
           { label: 'Logs', className: 'right cell-mono', render: (p) => String(p.total_logs) },
           { label: 'Warnings', className: 'right cell-mono', render: (p) => String(p.warnings) },
@@ -84,7 +84,7 @@ async function directory(ctx, main) {
           { label: 'Procedures', render: (p) => procCounts(p) },
           { label: 'Last sanction', className: 'nowrap', render: (p) => h('span', { title: fmtDateTime(p.last_sanction_at) }, fmtRelative(p.last_sanction_at)) },
           { label: 'Aliases', render: (p) => (p.aliases?.length ? p.aliases.join(', ') : '—') },
-        ], res.data, { onRowClick: (p) => { location.href = link('player.html', { u: p.target_normalized }); } }),
+        ], res.data, { onRowClick: (p) => { location.href = link('player', { u: p.target_normalized }); } }),
         pagination({ page: state.page, pageSize: PAGE_SIZE, total: res.count ?? 0, onPage: (p) => { state.page = p; load(); } }));
     } catch (err) {
       replace(results, errorState(err, load));
@@ -109,7 +109,7 @@ async function playerRecord(ctx, main, u) {
     try {
       const alias = unwrap(await supabase.from('player_aliases').select('canonical_normalized').eq('alias_normalized', u).maybeSingle());
       if (alias) {
-        location.replace(link('player.html', { u: alias.canonical_normalized }));
+        location.replace(link('player', { u: alias.canonical_normalized }));
         return;
       }
       const [player, counters, logs, resets, aliases] = await Promise.all([
@@ -131,8 +131,8 @@ async function playerRecord(ctx, main, u) {
   function render(player, counters, logs, resets, aliases) {
     const displayName = player?.last_username ?? u;
     const actions = [];
-    if (ctx.perms.write) actions.push(h('a', { class: 'btn btn-primary', href: link('log-new.html', { u: displayName }) }, '+ New log for this player'));
-    actions.push(h('a', { class: 'btn btn-ghost', href: link('logs.html', { q: u, status: 'all' }) }, 'View in logs'));
+    if (ctx.perms.write) actions.push(h('a', { class: 'btn btn-primary', href: link('log-new', { u: displayName }) }, '+ New log for this player'));
+    actions.push(h('a', { class: 'btn btn-ghost', href: link('logs', { q: u, status: 'all' }) }, 'View in logs'));
     if (ctx.perms.officer && counters.some((c) => Number(c.warnings_given) > 0)) {
       actions.push(button('Reset all warnings', () => resetWarnings(null, 'all offenses'), 'danger'));
     }
@@ -163,7 +163,7 @@ async function playerRecord(ctx, main, u) {
           { label: 'Reset', className: 'right cell-mono', render: (c) => (Number(c.warnings_reset) ? String(c.warnings_reset) : '—') },
           {
             label: '', className: 'right nowrap', render: (c) => [
-              ctx.perms.write ? h('a', { class: 'btn btn-ghost btn-sm', href: link('log-new.html', { u: displayName, offense: c.code }) }, 'New log') : null,
+              ctx.perms.write ? h('a', { class: 'btn btn-ghost btn-sm', href: link('log-new', { u: displayName, offense: c.code }) }, 'New log') : null,
               ctx.perms.officer && Number(c.warnings_given) > 0
                 ? button('Reset', () => resetWarnings(c.offense_id, `${c.code} — ${c.name}`), 'danger btn-sm', { title: 'Reset the warnings for this offense' })
                 : null,
@@ -195,13 +195,13 @@ async function playerRecord(ctx, main, u) {
           { label: 'Agent', render: (r) => r.agent_username ?? '—' },
           { label: 'Status', render: (r) => [statusBadge(r.status), r.is_override ? flag('Override', 'warn') : null, !r.counts_for_warnings ? flag('Reset', 'muted') : null] },
         ], logs, {
-          onRowClick: (r) => { location.href = link('log.html', { id: r.id }); },
+          onRowClick: (r) => { location.href = link('log', { id: r.id }); },
           rowClass: (r) => (r.status === 'voided' ? 'row-voided' : (!r.counts_for_warnings ? 'row-reset' : '')),
         })
         : emptyState('No logs for this player.'));
 
     const blocks = [
-      h('p', null, h('a', { href: 'player.html' }, '← Players')),
+      h('p', null, h('a', { href: 'player' }, '← Players')),
       pageHeader(`Record: ${displayName}`, 'All logs recorded under this username and its former usernames.', ...actions),
       h('div', { class: 'stack' }, summary, countersCard, logsCard, resetsCard, ctx.perms.manager ? aliasCard(aliases, displayName) : null),
     ];
@@ -302,7 +302,7 @@ async function playerRecord(ctx, main, u) {
     });
     if (!result) return;
     toast(`Merge done: ${result.n} log(s) grouped.`, 'success');
-    if (result.target !== u) location.href = link('player.html', { u: result.target });
+    if (result.target !== u) location.href = link('player', { u: result.target });
     else await load();
   }
 

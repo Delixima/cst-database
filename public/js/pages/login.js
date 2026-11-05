@@ -131,7 +131,7 @@ function signupForm() {
       password: password.value,
       options: {
         data: { roblox_username: username.value.trim() },
-        emailRedirectTo: new URL('index.html', location.href).href,
+        emailRedirectTo: new URL('/', location.href).href,
       },
     });
     submit.disabled = false;
@@ -148,7 +148,7 @@ function signupForm() {
 async function discordLogin() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'discord',
-    options: { redirectTo: new URL('index.html', location.href).href },
+    options: { redirectTo: new URL('/', location.href).href },
   });
   if (error) toast(errorMessage(error), 'error');
 }
@@ -182,7 +182,7 @@ function checkInboxView(address) {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: address,
-      options: { emailRedirectTo: new URL('index.html', location.href).href },
+      options: { emailRedirectTo: new URL('/', location.href).href },
     });
     if (error) {
       replace(status, h('div', { class: 'notice notice-danger' }, errorMessage(error)));
@@ -226,7 +226,7 @@ function forgotView(prefill = '') {
     if (!email.value.trim()) return showError(err, 'Enter your email.');
     submit.disabled = true;
     const { error } = await supabase.auth.resetPasswordForEmail(email.value.trim(), {
-      redirectTo: new URL('index.html', location.href).href,
+      redirectTo: new URL('/', location.href).href,
     });
     submit.disabled = false;
     if (error) return showError(err, error);
@@ -253,7 +253,7 @@ function newPasswordView() {
     submit.disabled = false;
     if (error) return showError(err, error);
     toast('Password updated.', 'success');
-    history.replaceState(null, '', 'index.html');
+    history.replaceState(null, '', '/');
     await route();
   });
   shell(h('h1', null, 'New password'), form);

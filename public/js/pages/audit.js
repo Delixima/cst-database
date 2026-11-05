@@ -63,7 +63,7 @@ boot(async () => {
       field('Table', tableSel), field('Operation', actionSel), field('User', userSel),
       field('Row', rowInput), field('From', fromInput), field('To', toInput)),
     h('div', { class: 'form-actions' },
-      button('Reset', () => { location.href = 'audit.html'; }, 'ghost'),
+      button('Reset', () => { location.href = 'audit'; }, 'ghost'),
       h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filter')));
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -78,7 +78,7 @@ boot(async () => {
   replace(main, pageHeader('Audit log', 'Every creation, update and deletion. Read-only: this log can be neither edited nor erased.'), form, results);
 
   async function load() {
-    history.replaceState(null, '', link('audit.html', { ...f, page: f.page > 1 ? f.page : '' }));
+    history.replaceState(null, '', link('audit', { ...f, page: f.page > 1 ? f.page : '' }));
     replace(results, loadingState('Loading the audit log…'));
     try {
       let q = supabase.from('audit_log').select('*', { count: 'exact' });
@@ -115,8 +115,8 @@ boot(async () => {
 
   function targetLink(e) {
     const d = e.new_data ?? e.old_data ?? {};
-    if (e.table_name === 'sanction_logs' && e.action !== 'DELETE' && d.id) return h('a', { href: link('log.html', { id: d.id }) }, 'Open the log');
-    if (e.table_name === 'warning_resets' && d.target_normalized) return h('a', { href: link('player.html', { u: d.target_normalized }) }, 'Player record');
+    if (e.table_name === 'sanction_logs' && e.action !== 'DELETE' && d.id) return h('a', { href: link('log', { id: d.id }) }, 'Open the log');
+    if (e.table_name === 'warning_resets' && d.target_normalized) return h('a', { href: link('player', { u: d.target_normalized }) }, 'Player record');
     return null;
   }
 

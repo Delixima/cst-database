@@ -26,7 +26,7 @@ boot(async () => {
   const saved = qs('saved');
   if (saved) {
     toast(saved === 'created' ? 'Log saved.' : 'Changes saved.', 'success');
-    history.replaceState(null, '', link('log.html', { id }));
+    history.replaceState(null, '', link('log', { id }));
   }
 
   let lookups = null;
@@ -37,7 +37,7 @@ boot(async () => {
       const log = unwrap(await supabase.from('sanction_logs_expanded').select('*').eq('id', id).maybeSingle());
       if (!log) {
         replace(main, errorState('Log not found, deleted or not accessible.'),
-          h('p', null, h('a', { href: 'logs.html' }, '← Back to logs')));
+          h('p', null, h('a', { href: 'logs' }, '← Back to logs')));
         return;
       }
       const [history, offenses, profiles] = await Promise.all([
@@ -72,7 +72,7 @@ boot(async () => {
     // ----- actions
     const actions = [];
     actions.push(button('Print', () => window.print(), 'ghost'));
-    if (editable && !deleted) actions.push(h('a', { class: 'btn btn-primary', href: link('log-new.html', { edit: log.id }) }, 'Edit'));
+    if (editable && !deleted) actions.push(h('a', { class: 'btn btn-primary', href: link('log-new', { edit: log.id }) }, 'Edit'));
     if (editable && !deleted && reportMissing) {
       const b = button('Mark report as filed', null, 'ghost');
       b.addEventListener('click', () => withBusy(b, async () => {
@@ -155,7 +155,7 @@ boot(async () => {
             const rows = unwrap(await supabase.from('sanction_logs').delete().eq('id', log.id).select('id'));
             if (!rows.length) throw new Error('Delete refused.');
             toast('Log permanently deleted.', 'success');
-            location.href = 'logs.html';
+            location.href = 'logs';
           });
         }, 'danger'));
       }
@@ -192,7 +192,7 @@ boot(async () => {
     }
 
     const sanction = card('Sanction', definitionList([
-      ['Target', h('a', { href: link('player.html', { u: log.target_normalized }) }, log.target_username)],
+      ['Target', h('a', { href: link('player', { u: log.target_normalized }) }, log.target_username)],
       log.target_normalized !== log.target_username.toLowerCase() ? ['Player record', log.target_normalized] : null,
       ['Target type', TARGET_TYPES[log.target_type]],
       ['Procedure', [procedureBadge(log.procedure), ' ', PROCEDURES[log.procedure]?.desc]],
@@ -230,7 +230,7 @@ boot(async () => {
         : emptyState('No history.'));
 
     replace(main,
-      h('p', { class: 'no-print' }, h('a', { href: 'logs.html' }, '← Logs')),
+      h('p', { class: 'no-print' }, h('a', { href: 'logs' }, '← Logs')),
       pageHeader(`Log ${log.log_number}`, `${log.offense_code} — ${log.offense_name}`, ...actions),
       h('div', { class: 'print-only' }, h('p', null, `Coruscant Shock Troopers — printed on ${fmtDateTime(new Date().toISOString())}`)),
       h('div', { class: 'stack' },

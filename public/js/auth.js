@@ -33,9 +33,10 @@ export async function fetchProfile(userId) {
 
 /** Only same-site page paths are accepted as a post-login redirect. */
 export function safeNext(next) {
-  if (typeof next !== 'string') return 'dashboard.html';
-  const m = /^\/?([a-z0-9-]+\.html)(\?[^#\s]*)?$/i.exec(next);
-  if (!m || m[1] === 'index.html') return 'dashboard.html';
+  if (typeof next !== 'string') return 'dashboard';
+  // "logs?q=x", "/logs?q=x" and the legacy "logs.html?q=x" all give "logs?q=x".
+  const m = /^\/?([a-z0-9-]+)(?:\.html)?(\?[^#\s]*)?$/i.exec(next);
+  if (!m || m[1].toLowerCase() === 'index') return 'dashboard';
   return m[1] + (m[2] ?? '');
 }
 
@@ -48,22 +49,22 @@ export async function requireAuth({ minLevel = 1 } = {}) {
   const session = await getSession();
   if (!session) {
     const here = location.pathname.split('/').pop() + location.search;
-    location.replace('index.html?next=' + encodeURIComponent(here));
+    location.replace('/?next=' + encodeURIComponent(here));
     throw new Halt();
   }
   const profile = await fetchProfile(session.user.id);
   if (!profile || !profile.active || level(profile.role) < 1) {
-    location.replace('index.html');
+    location.replace('/');
     throw new Halt();
   }
   const lvl = level(profile.role);
   if (lvl < minLevel) {
-    location.replace('dashboard.html?denied=1');
+    location.replace('dashboard?denied=1');
     throw new Halt();
   }
 
   supabase.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_OUT') location.replace('index.html');
+    if (event === 'SIGNED_OUT') location.replace('/');
   });
 
   return { session, user: session.user, profile, lvl, perms: permsFor(profile) };
@@ -97,5 +98,5 @@ export function canEditLog(ctx, log) {
 
 export async function signOut() {
   await supabase.auth.signOut();
-  location.replace('index.html');
+  location.replace('/');
 }
