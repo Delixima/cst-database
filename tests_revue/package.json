@@ -1,0 +1,12 @@
+{
+  "name": "cst-tests-revue",
+  "private": true,
+  "type": "module",
+  "description": "Local test suite for the CST sanction registry (Postgres in WASM, no Supabase account needed).",
+  "scripts": {
+    "test": "node run-all.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15"
+  }
+}

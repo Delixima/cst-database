@@ -12,3 +12,8 @@ node_modules/
 
 # Never commit a Supabase service_role key or local overrides
 *.local.js
+
+# Local test suite: dependencies and generated files
+tests_revue/node_modules/
+tests_revue/_prod_path.sql
+tests_revue/edge.sql
