@@ -58,37 +58,37 @@ boot(async () => {
   };
 
   // ------------------------------------------------------------ controls
-  const qInput = input({ type: 'search', value: f.q, placeholder: 'Pseudo ou LOG-2026-00001', maxlength: 40 });
-  const procSel = select(Object.fromEntries(Object.entries(PROCEDURES).map(([k, v]) => [k, v.label])), { value: f.procedure, placeholder: 'Toutes' });
-  const offenseSel = select(offenses.map((o) => ({ value: o.code, label: `${o.code} — ${o.name}${o.active ? '' : ' (désactivée)'}` })), { value: f.offense, placeholder: 'Toutes' });
-  const agentSel = select(agents.map((a) => ({ value: a.id, label: a.roblox_username ?? '(sans pseudo)' })), { value: f.agent, placeholder: 'Tous' });
-  const actionSel = select(ACTIONS, { value: f.action, placeholder: 'Toutes' });
-  const statusSel = select({ valid: 'Valides', voided: 'Annulés', all: 'Tous' }, { value: f.status });
+  const qInput = input({ type: 'search', value: f.q, placeholder: 'Username or LOG-2026-00001', maxlength: 40 });
+  const procSel = select(Object.fromEntries(Object.entries(PROCEDURES).map(([k, v]) => [k, v.label])), { value: f.procedure, placeholder: 'All' });
+  const offenseSel = select(offenses.map((o) => ({ value: o.code, label: `${o.code} — ${o.name}${o.active ? '' : ' (inactive)'}` })), { value: f.offense, placeholder: 'All' });
+  const agentSel = select(agents.map((a) => ({ value: a.id, label: a.roblox_username ?? '(no username)' })), { value: f.agent, placeholder: 'All' });
+  const actionSel = select(ACTIONS, { value: f.action, placeholder: 'All' });
+  const statusSel = select({ valid: 'Valid', voided: 'Voided', all: 'All' }, { value: f.status });
   const fromInput = input({ type: 'date', value: f.from });
   const toInput = input({ type: 'date', value: f.to });
   const flagSel = select({
-    override: 'Écart avec la recommandation',
-    approval_pending: 'Approbation ⧭ non confirmée',
-    report_missing: 'Rapport non fait',
-    reset: 'Remis à zéro (ne compte plus)',
-  }, { value: f.flag, placeholder: 'Aucun' });
-  const deletedBox = ctx.perms.manager ? checkbox('Inclure les logs supprimés', f.deleted) : null;
+    override: 'Override of the recommendation',
+    approval_pending: 'Unconfirmed ⧭ approval',
+    report_missing: 'Report not filed',
+    reset: 'Warnings reset (no longer counts)',
+  }, { value: f.flag, placeholder: 'None' });
+  const deletedBox = ctx.perms.manager ? checkbox('Include deleted logs', f.deleted) : null;
 
   const filtersForm = h('form', { class: 'card no-print', role: 'search' },
     h('div', { class: 'filters' },
-      field('Recherche', qInput),
-      field('Procédure', procSel),
-      field('Infraction', offenseSel),
+      field('Search', qInput),
+      field('Procedure', procSel),
+      field('Offense', offenseSel),
       field('Agent', agentSel),
       field('Action', actionSel),
-      field('Statut', statusSel),
-      field('Du', fromInput),
-      field('Au', toInput),
-      field('Signalement', flagSel),
-      deletedBox ? h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Gérant'), deletedBox) : null),
+      field('Status', statusSel),
+      field('From', fromInput),
+      field('To', toInput),
+      field('Flag', flagSel),
+      deletedBox ? h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Manager'), deletedBox) : null),
     h('div', { class: 'form-actions' },
-      button('Réinitialiser', () => { location.href = 'logs.html'; }, 'ghost'),
-      h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filtrer')));
+      button('Reset', () => { location.href = 'logs.html'; }, 'ghost'),
+      h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filter')));
 
   filtersForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -100,12 +100,12 @@ boot(async () => {
     load();
   });
 
-  const exportBtn = button('Exporter en CSV', null, 'ghost');
+  const exportBtn = button('Export to CSV', null, 'ghost');
   exportBtn.addEventListener('click', () => withBusy(exportBtn, exportCsv));
   const results = h('div', { class: 'stack' });
   const actions = [exportBtn];
-  if (ctx.perms.write) actions.unshift(h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ Nouveau log'));
-  replace(main, pageHeader('Logs des sanctions', 'Recherche dans l’ensemble des sanctions enregistrées.', ...actions), filtersForm, results);
+  if (ctx.perms.write) actions.unshift(h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ New log'));
+  replace(main, pageHeader('Sanction logs', 'Search across every recorded sanction.', ...actions), filtersForm, results);
 
   // ------------------------------------------------------------ query
   const COLUMNS = 'id, log_number, occurred_at, created_at, target_username, target_normalized, target_type, procedure, offense_code, offense_name, offense_requires_cs_approval, offense_report_required, offense_max_warnings, action_taken, warning_number, jail_seconds, agent_username, approver_username, approved_by, approval_confirmed_at, ordered_by, order_type, is_override, recommended_action, recommendation_code, recommended_warning_number, override_reason, report_filed, location, notes, evidence_urls, status, void_reason, counts_for_warnings, deleted_at';
@@ -152,7 +152,7 @@ boot(async () => {
 
   async function load() {
     syncUrl();
-    replace(results, loadingState('Recherche…'));
+    replace(results, loadingState('Searching…'));
     try {
       const fromIdx = (f.page - 1) * PAGE_SIZE;
       const res = await buildQuery(COLUMNS, { count: true }).range(fromIdx, fromIdx + PAGE_SIZE - 1);
@@ -165,17 +165,17 @@ boot(async () => {
 
   function flagsFor(r) {
     return [
-      r.is_override ? flag('Écart', 'warn', `Recommandé : ${recommendationLabel(r.recommendation_code, r.recommended_warning_number, r.offense_max_warnings)}`) : null,
-      r.approved_by && !r.approval_confirmed_at ? flag('⧭ à confirmer', 'warn') : null,
-      r.offense_report_required && !r.report_filed && ['arrest', 'termination'].includes(r.action_taken) ? flag('Rapport', 'danger', 'Rapport obligatoire non fait') : null,
-      !r.counts_for_warnings ? flag('RAZ', 'muted', 'Warnings remis à zéro : ne compte plus') : null,
-      r.order_type !== 'none' ? flag(r.order_type === 'hicom_isb_order' ? 'HICOM/ISB' : r.order_type === 'kill_on_sight' ? 'KOS' : 'AOS', 'info', `Ordre de ${r.ordered_by ?? '—'}`) : null,
+      r.is_override ? flag('Override', 'warn', `Recommended: ${recommendationLabel(r.recommendation_code, r.recommended_warning_number, r.offense_max_warnings)}`) : null,
+      r.approved_by && !r.approval_confirmed_at ? flag('⧭ to confirm', 'warn') : null,
+      r.offense_report_required && !r.report_filed && ['arrest', 'termination'].includes(r.action_taken) ? flag('Report', 'danger', 'Required report not filed') : null,
+      !r.counts_for_warnings ? flag('Reset', 'muted', 'Warnings reset: no longer counts') : null,
+      r.order_type !== 'none' ? flag(r.order_type === 'hicom_isb_order' ? 'HICOM/ISB' : r.order_type === 'kill_on_sight' ? 'KOS' : 'AOS', 'info', `Ordered by ${r.ordered_by ?? '—'}`) : null,
     ];
   }
 
   function render(rows, total) {
     if (!rows.length) {
-      replace(results, emptyState('Aucun log ne correspond à ces critères.'));
+      replace(results, emptyState('No log matches these criteria.'));
       return;
     }
     const onSort = (col) => {
@@ -186,16 +186,16 @@ boot(async () => {
     };
     replace(results,
       table([
-        { label: 'N°', sort: 'log_number', className: 'cell-mono nowrap', render: (r) => r.log_number },
-        { label: 'Date des faits', sort: 'occurred_at', className: 'nowrap', render: (r) => fmtDateTime(r.occurred_at) },
-        { label: 'Cible', sort: 'target', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
-        { label: 'Procédure', render: (r) => procedureBadge(r.procedure) },
-        { label: 'Infraction', sort: 'offense', render: (r) => [h('span', { class: 'cell-mono', title: r.offense_name }, r.offense_code), r.offense_requires_cs_approval ? approvalMark() : null] },
+        { label: 'No.', sort: 'log_number', className: 'cell-mono nowrap', render: (r) => r.log_number },
+        { label: 'Incident date', sort: 'occurred_at', className: 'nowrap', render: (r) => fmtDateTime(r.occurred_at) },
+        { label: 'Target', sort: 'target', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
+        { label: 'Procedure', render: (r) => procedureBadge(r.procedure) },
+        { label: 'Offense', sort: 'offense', render: (r) => [h('span', { class: 'cell-mono', title: r.offense_name }, r.offense_code), r.offense_requires_cs_approval ? approvalMark() : null] },
         { label: 'Action', sort: 'action', render: (r) => actionBadge(r.action_taken, r.warning_number, r.offense_max_warnings) },
         { label: 'Jail', className: 'nowrap small', render: (r) => (r.jail_seconds ? `${r.jail_seconds} s` : '—') },
         { label: 'Agent', sort: 'agent', render: (r) => r.agent_username ?? '—' },
-        { label: 'Statut', render: (r) => statusBadge(r.status, r.deleted_at) },
-        { label: 'Signalements', render: flagsFor },
+        { label: 'Status', render: (r) => statusBadge(r.status, r.deleted_at) },
+        { label: 'Flags', render: flagsFor },
       ], rows, {
         sort: { column: f.sort, ascending: f.asc },
         onSort,
@@ -214,41 +214,41 @@ boot(async () => {
       if (rows.length < chunk) break;
     }
     if (!all.length) {
-      toast('Rien à exporter avec ces filtres.', 'warn');
+      toast('Nothing to export with these filters.', 'warn');
       return;
     }
     const csv = toCsv(all, [
-      { label: 'Numéro', get: (r) => r.log_number },
-      { label: 'Date des faits', get: (r) => fmtDateTime(r.occurred_at) },
-      { label: 'Date ISO', get: (r) => r.occurred_at },
-      { label: 'Cible', get: (r) => r.target_username },
-      { label: 'Dossier joueur', get: (r) => r.target_normalized },
-      { label: 'Type de cible', get: (r) => TARGET_TYPES[r.target_type] },
-      { label: 'Procédure', get: (r) => PROCEDURES[r.procedure]?.label },
+      { label: 'Number', get: (r) => r.log_number },
+      { label: 'Incident date', get: (r) => fmtDateTime(r.occurred_at) },
+      { label: 'ISO date', get: (r) => r.occurred_at },
+      { label: 'Target', get: (r) => r.target_username },
+      { label: 'Player record', get: (r) => r.target_normalized },
+      { label: 'Target type', get: (r) => TARGET_TYPES[r.target_type] },
+      { label: 'Procedure', get: (r) => PROCEDURES[r.procedure]?.label },
       { label: 'Code', get: (r) => r.offense_code },
-      { label: 'Infraction', get: (r) => r.offense_name },
-      { label: 'Action prise', get: (r) => ACTIONS[r.action_taken] },
-      { label: 'N° Warning', get: (r) => r.warning_number },
+      { label: 'Offense', get: (r) => r.offense_name },
+      { label: 'Action taken', get: (r) => ACTIONS[r.action_taken] },
+      { label: 'Warning no.', get: (r) => r.warning_number },
       { label: 'Jail', get: (r) => fmtJail(r.jail_seconds) },
-      { label: 'Recommandation', get: (r) => recommendationLabel(r.recommendation_code, r.recommended_warning_number, r.offense_max_warnings) },
-      { label: 'Écart', get: (r) => (r.is_override ? 'Oui' : 'Non') },
-      { label: 'Justification écart', get: (r) => r.override_reason },
+      { label: 'Recommendation', get: (r) => recommendationLabel(r.recommendation_code, r.recommended_warning_number, r.offense_max_warnings) },
+      { label: 'Override', get: (r) => (r.is_override ? 'Yes' : 'No') },
+      { label: 'Override justification', get: (r) => r.override_reason },
       { label: 'Agent', get: (r) => r.agent_username },
-      { label: 'Approbateur', get: (r) => r.approver_username },
-      { label: 'Approbation confirmée', get: (r) => (r.approved_by ? (r.approval_confirmed_at ? 'Oui' : 'Non') : '') },
-      { label: 'Type d’ordre', get: (r) => ORDER_TYPES[r.order_type] },
-      { label: 'Ordre donné par', get: (r) => r.ordered_by },
-      { label: 'Rapport fait', get: (r) => (r.report_filed ? 'Oui' : 'Non') },
-      { label: 'Lieu', get: (r) => r.location },
+      { label: 'Approver', get: (r) => r.approver_username },
+      { label: 'Approval confirmed', get: (r) => (r.approved_by ? (r.approval_confirmed_at ? 'Yes' : 'No') : '') },
+      { label: 'Order type', get: (r) => ORDER_TYPES[r.order_type] },
+      { label: 'Ordered by', get: (r) => r.ordered_by },
+      { label: 'Report filed', get: (r) => (r.report_filed ? 'Yes' : 'No') },
+      { label: 'Location', get: (r) => r.location },
       { label: 'Notes', get: (r) => r.notes },
-      { label: 'Preuves', get: (r) => r.evidence_urls },
-      { label: 'Statut', get: (r) => (r.deleted_at ? 'Supprimé' : STATUSES[r.status]) },
-      { label: 'Motif annulation', get: (r) => r.void_reason },
-      { label: 'Compte pour les Warnings', get: (r) => (r.counts_for_warnings ? 'Oui' : 'Non') },
+      { label: 'Evidence', get: (r) => r.evidence_urls },
+      { label: 'Status', get: (r) => (r.deleted_at ? 'Deleted' : STATUSES[r.status]) },
+      { label: 'Void reason', get: (r) => r.void_reason },
+      { label: 'Counts toward warnings', get: (r) => (r.counts_for_warnings ? 'Yes' : 'No') },
     ]);
     const stamp = new Date().toISOString().slice(0, 10);
     downloadText(`cst-logs-${stamp}.csv`, csv);
-    toast(`${all.length} log(s) exporté(s).`, 'success');
+    toast(`${all.length} log(s) exported.`, 'success');
   }
 
   await load();

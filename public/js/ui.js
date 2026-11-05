@@ -87,19 +87,19 @@ export const actionBadge = (a, warningNumber, max) =>
 
 export const statusBadge = (s, deleted) =>
   deleted
-    ? h('span', { class: 'badge st-deleted' }, 'Supprimé')
+    ? h('span', { class: 'badge st-deleted' }, 'Deleted')
     : h('span', { class: `badge st-${s}` }, STATUSES[s] ?? s);
 
 export const roleBadge = (r) => h('span', { class: `badge role role-${r}` }, ROLES[r] ?? r);
 
 export const approvalMark = () =>
-  h('span', { class: 'approval-mark', title: 'Approbation d’un Company Sergeant ou plus requise avant l’arrestation' }, APPROVAL_MARK);
+  h('span', { class: 'approval-mark', title: 'Approval from a Company Sergeant or above required before the arrest' }, APPROVAL_MARK);
 
 export const flag = (text, tone = 'warn', title = '') => h('span', { class: `flag flag-${tone}`, title }, text);
 
 // ---------------------------------------------------------------- states
 
-export const loadingState = (text = 'Chargement…') =>
+export const loadingState = (text = 'Loading…') =>
   h('div', { class: 'state state-loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), h('span', null, text));
 
 export const emptyState = (text, ...actions) =>
@@ -107,34 +107,34 @@ export const emptyState = (text, ...actions) =>
 
 export function errorState(err, retry) {
   return h('div', { class: 'state state-error', role: 'alert' },
-    h('strong', null, 'Erreur'),
+    h('strong', null, 'Error'),
     h('p', null, errorMessage(err)),
-    retry ? h('button', { class: 'btn btn-ghost', type: 'button', onClick: retry }, 'Réessayer') : null);
+    retry ? h('button', { class: 'btn btn-ghost', type: 'button', onClick: retry }, 'Retry') : null);
 }
 
 const CONSTRAINT_MESSAGES = {
-  sanction_logs_evidence_urls_check: 'Preuves invalides : 10 liens maximum, uniquement en https://.',
-  sanction_logs_target_username_check: 'Pseudo Roblox invalide (3 à 20 caractères : lettres, chiffres, _).',
-  sanction_logs_notes_check: 'Notes trop longues (4000 caractères maximum).',
-  sanction_logs_location_check: 'Lieu trop long (120 caractères maximum).',
-  sanction_logs_jail_seconds_check: 'Durée de Jail invalide (1 à 86400 secondes).',
-  sanction_logs_override_reason_check: 'Justification invalide (3 à 500 caractères).',
-  sanction_logs_void_reason_check: 'Motif d’annulation invalide (3 à 500 caractères).',
-  offenses_code_check: 'Code invalide. Format attendu : lettre de procédure + numéro, ex. A15.0.',
-  offenses_code_matches_procedure: 'La lettre du code doit correspondre à la procédure (A = Alpha, F = Foxtrot, T = Tango, D = Delta, L = Lima, H = Hotel).',
-  offenses_code_key: 'Ce code d’infraction existe déjà.',
-  profiles_roblox_username_lower_key: 'Ce pseudo Roblox est déjà utilisé par un autre compte.',
-  profiles_service_number_key: 'Ce matricule est déjà attribué.',
-  profiles_service_number_check: 'Matricule invalide (1 à 20 caractères : lettres, chiffres, tiret).',
-  profiles_roblox_username_check: 'Pseudo Roblox invalide (3 à 20 caractères : lettres, chiffres, _).',
-  ranks_name_lower_key: 'Ce grade existe déjà.',
-  squads_name_lower_key: 'Cette équipe existe déjà.',
-  player_aliases_alias_key: 'Cet alias est déjà rattaché à un joueur.',
+  sanction_logs_evidence_urls_check: 'Invalid evidence: 10 links maximum, https:// only.',
+  sanction_logs_target_username_check: 'Invalid Roblox username (3 to 20 characters: letters, digits, _).',
+  sanction_logs_notes_check: 'Notes too long (4000 characters maximum).',
+  sanction_logs_location_check: 'Location too long (120 characters maximum).',
+  sanction_logs_jail_seconds_check: 'Invalid jail duration (1 to 86400 seconds).',
+  sanction_logs_override_reason_check: 'Invalid justification (3 to 500 characters).',
+  sanction_logs_void_reason_check: 'Invalid void reason (3 to 500 characters).',
+  offenses_code_check: 'Invalid code. Expected format: procedure letter + number, e.g. A15.0.',
+  offenses_code_matches_procedure: 'The code letter must match the procedure (A = Alpha, F = Foxtrot, T = Tango, D = Delta, L = Lima, H = Hotel).',
+  offenses_code_key: 'This offense code already exists.',
+  profiles_roblox_username_lower_key: 'This Roblox username is already used by another account.',
+  profiles_service_number_key: 'This service number is already assigned.',
+  profiles_service_number_check: 'Invalid service number (1 to 20 characters: letters, digits, hyphen).',
+  profiles_roblox_username_check: 'Invalid Roblox username (3 to 20 characters: letters, digits, _).',
+  ranks_name_lower_key: 'This rank already exists.',
+  squads_name_lower_key: 'This squad already exists.',
+  player_aliases_alias_key: 'This alias is already linked to a player.',
 };
 
-/** Turns a Supabase / Postgres / network error into a clear French message. */
+/** Turns a Supabase / Postgres / network error into a clear message. */
 export function errorMessage(err) {
-  if (!err) return 'Erreur inconnue.';
+  if (!err) return 'Unknown error.';
   if (typeof err === 'string') return err;
   const msg = err.message || err.error_description || String(err);
   const code = err.code;
@@ -142,18 +142,18 @@ export function errorMessage(err) {
   const constraint = /constraint "([^"]+)"/.exec(msg)?.[1] || /"([a-z_]+_key)"/.exec(msg)?.[1];
   if (constraint && CONSTRAINT_MESSAGES[constraint]) return CONSTRAINT_MESSAGES[constraint];
 
-  if (/row-level security/i.test(msg)) return 'Action non autorisée pour votre rôle.';
-  if (code === '23505') return 'Cette valeur existe déjà (doublon).';
-  if (code === '23503' && /foreign key/i.test(msg)) return 'Élément encore utilisé par d’autres enregistrements : suppression impossible. Désactivez-le plutôt.';
-  if (code === 'PGRST116') return 'Élément introuvable ou inaccessible.';
-  if (code === 'PGRST301' || /JWT expired/i.test(msg)) return 'Session expirée : reconnectez-vous.';
-  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Impossible de joindre le serveur. Vérifiez votre connexion.';
-  if (/Invalid login credentials/i.test(msg)) return 'Email ou mot de passe incorrect.';
-  if (/Email not confirmed/i.test(msg)) return 'Adresse email non confirmée : cliquez sur le lien reçu par email.';
-  if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cet email.';
-  if (/Password should be at least/i.test(msg)) return 'Mot de passe trop court.';
-  if (/rate limit|too many requests/i.test(msg)) return 'Trop de tentatives. Patientez quelques minutes.';
-  if (/Unable to validate email address/i.test(msg)) return 'Adresse email invalide.';
+  if (/row-level security/i.test(msg)) return 'Action not allowed for your role.';
+  if (code === '23505') return 'This value already exists (duplicate).';
+  if (code === '23503' && /foreign key/i.test(msg)) return 'Item still used by other records: it cannot be deleted. Deactivate it instead.';
+  if (code === 'PGRST116') return 'Item not found or not accessible.';
+  if (code === 'PGRST301' || /JWT expired/i.test(msg)) return 'Session expired: please sign in again.';
+  if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Cannot reach the server. Check your connection.';
+  if (/Invalid login credentials/i.test(msg)) return 'Incorrect email or password.';
+  if (/Email not confirmed/i.test(msg)) return 'Email address not confirmed: click the link you received by email.';
+  if (/User already registered/i.test(msg)) return 'An account already exists with this email.';
+  if (/Password should be at least/i.test(msg)) return 'Password too short.';
+  if (/rate limit|too many requests/i.test(msg)) return 'Too many attempts. Please wait a few minutes.';
+  if (/Unable to validate email address/i.test(msg)) return 'Invalid email address.';
   return msg;
 }
 
@@ -179,11 +179,11 @@ export function toast(message, tone = 'info', ms = 4500) {
  * Generic modal. `onSubmit` returns true (or a value) to close; throwing shows the error in the dialog.
  * Resolves with the onSubmit result, or null when cancelled.
  */
-export function formDialog({ title, body, submitLabel = 'Valider', danger = false, onSubmit, wide = false }) {
+export function formDialog({ title, body, submitLabel = 'Confirm', danger = false, onSubmit, wide = false }) {
   return new Promise((resolve) => {
     const errorBox = h('div', { class: 'form-error', role: 'alert', hidden: true });
     const submitBtn = h('button', { type: 'submit', class: `btn ${danger ? 'btn-danger' : 'btn-primary'}` }, submitLabel);
-    const cancelBtn = h('button', { type: 'button', class: 'btn btn-ghost' }, 'Annuler');
+    const cancelBtn = h('button', { type: 'button', class: 'btn btn-ghost' }, 'Cancel');
     const form = h('form', { class: 'dialog-form', novalidate: true },
       h('header', { class: 'dialog-head' }, h('h2', null, title)),
       h('div', { class: 'dialog-body' }, body, errorBox),
@@ -225,23 +225,23 @@ export function formDialog({ title, body, submitLabel = 'Valider', danger = fals
  * Confirmation, optionally with a reason field and/or a word to type.
  * Resolves with { value } when confirmed, null otherwise.
  */
-export function confirmDialog({ title, message, confirmLabel = 'Confirmer', danger = false, reason = null, typeToConfirm = null }) {
+export function confirmDialog({ title, message, confirmLabel = 'Confirm', danger = false, reason = null, typeToConfirm = null }) {
   const reasonInput = reason
     ? h('textarea', { class: 'input', rows: 3, maxlength: reason.maxLength ?? 500, placeholder: reason.placeholder ?? '' })
     : null;
   const typeInput = typeToConfirm ? h('input', { class: 'input', type: 'text', autocomplete: 'off' }) : null;
   const body = h('div', null,
     message ? h('p', { class: 'dialog-message' }, message) : null,
-    reasonInput ? field(reason.label ?? 'Motif', reasonInput, reason.hint) : null,
-    typeInput ? field(`Tapez « ${typeToConfirm} » pour confirmer`, typeInput) : null);
+    reasonInput ? field(reason.label ?? 'Reason', reasonInput, reason.hint) : null,
+    typeInput ? field(`Type "${typeToConfirm}" to confirm`, typeInput) : null);
   return formDialog({
     title, body, submitLabel: confirmLabel, danger,
     onSubmit: async () => {
       const value = reasonInput ? reasonInput.value.trim() : '';
       if (reasonInput && value.length < (reason.minLength ?? 3)) {
-        throw new Error(`${reason.label ?? 'Motif'} : ${reason.minLength ?? 3} caractères minimum.`);
+        throw new Error(`${reason.label ?? 'Reason'}: ${reason.minLength ?? 3} characters minimum.`);
       }
-      if (typeInput && typeInput.value.trim() !== typeToConfirm) throw new Error('Le texte de confirmation ne correspond pas.');
+      if (typeInput && typeInput.value.trim() !== typeToConfirm) throw new Error('The confirmation text does not match.');
       return { value };
     },
   });
@@ -342,13 +342,13 @@ export function pagination({ page, pageSize, total, onPage }) {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   return h('div', { class: 'pagination' },
-    h('span', { class: 'muted' }, `${from}–${to} sur ${total}`),
+    h('span', { class: 'muted' }, `${from}–${to} of ${total}`),
     h('div', { class: 'pager' },
-      button('« Début', () => onPage(1), 'ghost', { disabled: page <= 1 }),
-      button('‹ Préc.', () => onPage(page - 1), 'ghost', { disabled: page <= 1 }),
-      h('span', { class: 'pager-current' }, `Page ${page} / ${pages}`),
-      button('Suiv. ›', () => onPage(page + 1), 'ghost', { disabled: page >= pages }),
-      button('Fin »', () => onPage(pages), 'ghost', { disabled: page >= pages })));
+      button('« First', () => onPage(1), 'ghost', { disabled: page <= 1 }),
+      button('‹ Prev', () => onPage(page - 1), 'ghost', { disabled: page <= 1 }),
+      h('span', { class: 'pager-current' }, `Page ${page} of ${pages}`),
+      button('Next ›', () => onPage(page + 1), 'ghost', { disabled: page >= pages }),
+      button('Last »', () => onPage(pages), 'ghost', { disabled: page >= pages })));
 }
 
 export const card = (title, ...children) =>
@@ -361,13 +361,13 @@ export function definitionList(items) {
 
 /** Evidence links with image previews (no-referrer, lazy). */
 export function evidenceView(urls) {
-  if (!urls?.length) return h('p', { class: 'muted' }, 'Aucune preuve jointe.');
+  if (!urls?.length) return h('p', { class: 'muted' }, 'No evidence attached.');
   return h('div', { class: 'evidence-grid' }, urls.map((u) => {
-    if (!isValidEvidenceUrl(u)) return h('div', { class: 'evidence-item' }, h('span', { class: 'muted' }, 'Lien invalide'));
+    if (!isValidEvidenceUrl(u)) return h('div', { class: 'evidence-item' }, h('span', { class: 'muted' }, 'Invalid link'));
     const a = h('a', { href: u, target: '_blank', rel: 'noopener noreferrer nofollow', class: 'evidence-link' });
     if (looksLikeImage(u)) {
-      const img = h('img', { src: u, alt: 'Aperçu de la preuve', loading: 'lazy', referrerpolicy: 'no-referrer' });
-      img.addEventListener('error', () => { img.replaceWith(h('span', { class: 'evidence-fallback' }, 'Aperçu indisponible')); });
+      const img = h('img', { src: u, alt: 'Evidence preview', loading: 'lazy', referrerpolicy: 'no-referrer' });
+      img.addEventListener('error', () => { img.replaceWith(h('span', { class: 'evidence-fallback' }, 'Preview unavailable')); });
       a.append(img);
     }
     a.append(h('span', { class: 'evidence-url' }, u));
@@ -378,7 +378,7 @@ export function evidenceView(urls) {
 /** Formats a raw value from audit JSON for display. */
 export function displayValue(key, value, lookups = {}) {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (Array.isArray(value)) return value.length ? value.join('\n') : '—';
   if (lookups[key] && lookups[key][value]) return lookups[key][value];
   if (/_at$/.test(key) && typeof value === 'string') return fmtDateTime(value);
@@ -392,9 +392,9 @@ export function diffView(oldData, newData, lookups = {}) {
   const keys = [...new Set([...Object.keys(oldData ?? {}), ...Object.keys(newData ?? {})])]
     .filter((k) => !ignore.has(k))
     .filter((k) => JSON.stringify(oldData?.[k] ?? null) !== JSON.stringify(newData?.[k] ?? null));
-  if (!keys.length) return h('p', { class: 'muted' }, 'Aucun champ modifié.');
+  if (!keys.length) return h('p', { class: 'muted' }, 'No field changed.');
   return h('table', { class: 'diff' },
-    h('thead', null, h('tr', null, h('th', null, 'Champ'), oldData ? h('th', null, 'Avant') : null, newData ? h('th', null, 'Après') : null)),
+    h('thead', null, h('tr', null, h('th', null, 'Field'), oldData ? h('th', null, 'Before') : null, newData ? h('th', null, 'After') : null)),
     h('tbody', null, keys.map((k) => h('tr', null,
       h('td', { class: 'diff-key' }, FIELD_LABELS[k] ?? k),
       oldData ? h('td', { class: 'diff-old' }, displayValue(k, oldData[k], lookups)) : null,
@@ -402,7 +402,7 @@ export function diffView(oldData, newData, lookups = {}) {
 }
 
 /** Horizontal bar list: [{label, value, tone, href}] */
-export function barList(items, { empty = 'Aucune donnée.' } = {}) {
+export function barList(items, { empty = 'No data.' } = {}) {
   if (!items.length) return h('p', { class: 'muted' }, empty);
   const max = Math.max(...items.map((i) => Number(i.value) || 0), 1);
   return h('ul', { class: 'bars' }, items.map((i) => {

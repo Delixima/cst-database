@@ -47,20 +47,20 @@ boot(async () => {
     page: Math.max(1, parseInt(sp.get('page') ?? '1', 10) || 1),
   };
 
-  const tableSel = select(TABLE_LABELS, { value: f.table, placeholder: 'Toutes' });
-  const actionSel = select(AUDIT_ACTIONS, { value: f.action, placeholder: 'Toutes' });
-  const userSel = select(profiles.map((p) => ({ value: p.id, label: p.roblox_username ?? p.id.slice(0, 8) })), { value: f.user, placeholder: 'Tous' });
-  const rowInput = input({ value: f.row, placeholder: 'Identifiant (uuid)', maxlength: 64, spellcheck: 'false' });
+  const tableSel = select(TABLE_LABELS, { value: f.table, placeholder: 'All' });
+  const actionSel = select(AUDIT_ACTIONS, { value: f.action, placeholder: 'All' });
+  const userSel = select(profiles.map((p) => ({ value: p.id, label: p.roblox_username ?? p.id.slice(0, 8) })), { value: f.user, placeholder: 'All' });
+  const rowInput = input({ value: f.row, placeholder: 'ID (uuid)', maxlength: 64, spellcheck: 'false' });
   const fromInput = input({ type: 'date', value: f.from });
   const toInput = input({ type: 'date', value: f.to });
 
   const form = h('form', { class: 'card' },
     h('div', { class: 'filters' },
-      field('Table', tableSel), field('Opération', actionSel), field('Utilisateur', userSel),
-      field('Ligne', rowInput), field('Du', fromInput), field('Au', toInput)),
+      field('Table', tableSel), field('Operation', actionSel), field('User', userSel),
+      field('Row', rowInput), field('From', fromInput), field('To', toInput)),
     h('div', { class: 'form-actions' },
-      button('Réinitialiser', () => { location.href = 'audit.html'; }, 'ghost'),
-      h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filtrer')));
+      button('Reset', () => { location.href = 'audit.html'; }, 'ghost'),
+      h('button', { type: 'submit', class: 'btn btn-primary' }, 'Filter')));
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     Object.assign(f, {
@@ -71,11 +71,11 @@ boot(async () => {
   });
 
   const results = h('div');
-  replace(main, pageHeader('Journal d’audit', 'Toutes les créations, modifications et suppressions. Lecture seule : ce journal ne peut être ni modifié ni effacé.'), form, results);
+  replace(main, pageHeader('Audit log', 'Every creation, update and deletion. Read-only: this log can be neither edited nor erased.'), form, results);
 
   async function load() {
     history.replaceState(null, '', link('audit.html', { ...f, page: f.page > 1 ? f.page : '' }));
-    replace(results, loadingState('Chargement du journal…'));
+    replace(results, loadingState('Loading the audit log…'));
     try {
       let q = supabase.from('audit_log').select('*', { count: 'exact' });
       if (f.table) q = q.eq('table_name', f.table);
@@ -101,7 +101,7 @@ boot(async () => {
       case 'sanction_logs': return d.log_number ? `${d.log_number} — ${d.target_username ?? ''}` : '';
       case 'profiles': return d.roblox_username ?? (d.id ?? '').slice(0, 8);
       case 'offenses': return d.code ? `${d.code} — ${d.name}` : '';
-      case 'warning_resets': return `${d.target_normalized ?? ''}${d.offense_id ? ' · ' + (offenseMap[d.offense_id] ?? '') : ' · toutes'}`;
+      case 'warning_resets': return `${d.target_normalized ?? ''}${d.offense_id ? ' · ' + (offenseMap[d.offense_id] ?? '') : ' · all'}`;
       case 'player_aliases': return `${d.alias_normalized ?? ''} → ${d.canonical_normalized ?? ''}`;
       default: return d.name ?? '';
     }
@@ -109,14 +109,14 @@ boot(async () => {
 
   function targetLink(e) {
     const d = e.new_data ?? e.old_data ?? {};
-    if (e.table_name === 'sanction_logs' && e.action !== 'DELETE' && d.id) return h('a', { href: link('log.html', { id: d.id }) }, 'Ouvrir le log');
-    if (e.table_name === 'warning_resets' && d.target_normalized) return h('a', { href: link('player.html', { u: d.target_normalized }) }, 'Dossier joueur');
+    if (e.table_name === 'sanction_logs' && e.action !== 'DELETE' && d.id) return h('a', { href: link('log.html', { id: d.id }) }, 'Open the log');
+    if (e.table_name === 'warning_resets' && d.target_normalized) return h('a', { href: link('player.html', { u: d.target_normalized }) }, 'Player record');
     return null;
   }
 
   function render(rows, total) {
     if (!rows.length) {
-      replace(results, emptyState('Aucune entrée ne correspond.'));
+      replace(results, emptyState('No entry matches.'));
       return;
     }
     const tone = { INSERT: 'info', UPDATE: 'warn', DELETE: 'danger' };
@@ -128,10 +128,10 @@ boot(async () => {
           flag(AUDIT_ACTIONS[e.action] ?? e.action, tone[e.action]),
           h('strong', null, TABLE_LABELS[e.table_name] ?? e.table_name),
           h('span', null, describe(e)),
-          h('span', { class: 'muted' }, 'par ', e.user_id ? (profileMap[e.user_id] ?? e.user_id.slice(0, 8)) : 'système')),
+          h('span', { class: 'muted' }, 'by ', e.user_id ? (profileMap[e.user_id] ?? e.user_id.slice(0, 8)) : 'system')),
         h('div', { class: 'audit-body' },
           diffView(e.action === 'INSERT' ? null : e.old_data, e.action === 'DELETE' ? null : e.new_data, lookups),
-          h('p', { class: 'small', style: { marginTop: '8px' } }, targetLink(e), e.row_id ? h('span', { class: 'muted cell-mono' }, `  ligne ${e.row_id}`) : null))))),
+          h('p', { class: 'small', style: { marginTop: '8px' } }, targetLink(e), e.row_id ? h('span', { class: 'muted cell-mono' }, `  row ${e.row_id}`) : null))))),
       pagination({ page: f.page, pageSize: PAGE, total, onPage: (p) => { f.page = p; load(); window.scrollTo({ top: 0 }); } }));
   }
 

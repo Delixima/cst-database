@@ -1,45 +1,45 @@
-// Business vocabulary displayed in the UI (French labels, guide terms kept in English).
+// Business vocabulary displayed in the UI.
 
 export const PROCEDURES = {
-  alpha:   { label: 'Alpha',   desc: 'Menotter et emprisonner un membre du personnel impérial' },
-  foxtrot: { label: 'Foxtrot', desc: 'Menotter et emprisonner un immigré' },
-  tango:   { label: 'Tango',   desc: 'Éliminer (terminer) un membre du personnel ou un immigré' },
-  delta:   { label: 'Delta',   desc: 'Menotter et déplacer un membre du personnel ou un immigré' },
-  lima:    { label: 'Lima',    desc: 'Fouiller un immigré' },
-  hotel:   { label: 'Hotel',   desc: 'Détenir et retenir un contrevenant' },
+  alpha:   { label: 'Alpha',   desc: 'Cuff and jail an imperial personnel member' },
+  foxtrot: { label: 'Foxtrot', desc: 'Cuff and jail an immigrant' },
+  tango:   { label: 'Tango',   desc: 'Terminate a personnel member or an immigrant' },
+  delta:   { label: 'Delta',   desc: 'Cuff and relocate a personnel member or an immigrant' },
+  lima:    { label: 'Lima',    desc: 'Search an immigrant' },
+  hotel:   { label: 'Hotel',   desc: 'Detain and hold an offender' },
 };
 export const PROCEDURE_KEYS = Object.keys(PROCEDURES);
 export const PROCEDURE_PREFIX = { alpha: 'A', foxtrot: 'F', tango: 'T', delta: 'D', lima: 'L', hotel: 'H' };
 
 export const ACTIONS = {
   warning:     'Warning',
-  arrest:      'Arrestation (Jail)',
-  termination: 'Terminaison',
-  relocation:  'Déplacement (cuff out)',
-  search:      'Fouille',
-  detention:   'Détention',
+  arrest:      'Arrest (Jail)',
+  termination: 'Termination',
+  relocation:  'Relocation (cuff out)',
+  search:      'Search',
+  detention:   'Detention',
 };
 export const ACTION_KEYS = Object.keys(ACTIONS);
 
-export const TARGETS = { personnel: 'Personnel impérial', immigrant: 'Immigré', both: 'Les deux' };
-export const TARGET_TYPES = { personnel: 'Personnel impérial', immigrant: 'Immigré' };
+export const TARGETS = { personnel: 'Imperial personnel', immigrant: 'Immigrant', both: 'Both' };
+export const TARGET_TYPES = { personnel: 'Imperial personnel', immigrant: 'Immigrant' };
 
 export const ORDER_TYPES = {
-  none: 'Aucun ordre',
+  none: 'No order',
   arrest_on_sight: 'Arrest on Sight (AOS)',
   kill_on_sight: 'Kill on Sight (KOS)',
-  hicom_isb_order: 'Ordre HICOM / ISB',
+  hicom_isb_order: 'HICOM / ISB order',
 };
 
-export const STATUSES = { valid: 'Valide', voided: 'Annulé' };
+export const STATUSES = { valid: 'Valid', voided: 'Voided' };
 
 export const ROLES = {
-  manager:   'Gérant',
-  officer:   'Officier',
+  manager:   'Manager',
+  officer:   'Officer',
   cs:        'Company Sergeant',
   trooper:   'Trooper',
-  read_only: 'Lecture seule',
-  pending:   'En attente',
+  read_only: 'Read-only',
+  pending:   'Pending',
 };
 export const ROLE_KEYS = Object.keys(ROLES);
 
@@ -54,16 +54,16 @@ export function recommendationLabel(code, warningNumber, maxWarnings) {
   switch (code) {
     case 'warning':
       return maxWarnings ? `Warning ${warningNumber}/${maxWarnings}` : `Warning ${warningNumber ?? ''}`.trim();
-    case 'arrest_authorized': return 'Arrestation autorisée';
-    case 'immediate_arrest':  return 'Arrestation immédiate';
-    case 'arrest':            return 'Arrestation';
-    case 'termination':       return 'Terminaison';
+    case 'arrest_authorized': return 'Arrest authorized';
+    case 'immediate_arrest':  return 'Immediate arrest';
+    case 'arrest':            return 'Arrest';
+    case 'termination':       return 'Termination';
     case 'relocation':
-      return warningNumber ? `Déplacement (cuff out) + Warning ${warningNumber}${maxWarnings ? '/' + maxWarnings : ''}` : 'Déplacement (cuff out)';
-    case 'search':            return 'Fouille';
-    case 'detention':         return 'Détention';
-    case 'order_arrest':      return 'Arrestation (Arrest on Sight)';
-    case 'order_kill':        return 'Terminaison (Kill on Sight)';
+      return warningNumber ? `Relocation (cuff out) + Warning ${warningNumber}${maxWarnings ? '/' + maxWarnings : ''}` : 'Relocation (cuff out)';
+    case 'search':            return 'Search';
+    case 'detention':         return 'Detention';
+    case 'order_arrest':      return 'Arrest (Arrest on Sight)';
+    case 'order_kill':        return 'Termination (Kill on Sight)';
     default:                  return code ?? '—';
   }
 }
@@ -78,29 +78,29 @@ export function actionTone(action) {
 
 /** Labels for audit diffs. */
 export const FIELD_LABELS = {
-  log_number: 'Numéro', procedure: 'Procédure', offense_id: 'Infraction', target_username: 'Pseudo cible',
-  target_normalized: 'Dossier joueur', target_type: 'Type de cible', action_taken: 'Action prise',
-  warning_number: 'N° de Warning', jail_seconds: 'Jail (s)', prior_warnings: 'Warnings précédents',
-  recommended_action: 'Action recommandée', recommendation_code: 'Recommandation',
-  recommended_warning_number: 'Warning recommandé', is_override: 'Écart', override_reason: 'Justification de l’écart',
-  agent_id: 'Agent', created_by: 'Créé par', approved_by: 'Approbateur', approval_confirmed_by: 'Approbation confirmée par',
-  approval_confirmed_at: 'Approbation confirmée le', ordered_by: 'Ordre donné par', order_type: 'Type d’ordre',
-  report_filed: 'Rapport fait', location: 'Lieu', occurred_at: 'Date des faits', notes: 'Notes',
-  evidence_urls: 'Preuves', status: 'Statut', void_reason: 'Motif d’annulation', voided_by: 'Annulé par',
-  voided_at: 'Annulé le', counts_for_warnings: 'Compte pour les Warnings', created_at: 'Créé le',
-  updated_at: 'Modifié le', deleted_at: 'Supprimé le',
-  roblox_username: 'Pseudo Roblox', service_number: 'Matricule', rank_id: 'Grade', squad_id: 'Équipe',
-  role: 'Rôle', active: 'Actif', code: 'Code', name: 'Libellé', target: 'Cible', max_warnings: 'Warnings max',
-  default_action: 'Action par défaut', requires_cs_approval: 'Approbation CS (⧭)', report_required: 'Rapport obligatoire',
-  reason: 'Motif', reset_by: 'Par', logs_affected: 'Logs concernés', alias_normalized: 'Alias',
-  canonical_normalized: 'Pseudo principal', note: 'Note', short_name: 'Abréviation', sort_order: 'Ordre',
+  log_number: 'Number', procedure: 'Procedure', offense_id: 'Offense', target_username: 'Target username',
+  target_normalized: 'Player record', target_type: 'Target type', action_taken: 'Action taken',
+  warning_number: 'Warning no.', jail_seconds: 'Jail (s)', prior_warnings: 'Prior warnings',
+  recommended_action: 'Recommended action', recommendation_code: 'Recommendation',
+  recommended_warning_number: 'Recommended warning', is_override: 'Override', override_reason: 'Override reason',
+  agent_id: 'Agent', created_by: 'Created by', approved_by: 'Approver', approval_confirmed_by: 'Approval confirmed by',
+  approval_confirmed_at: 'Approval confirmed at', ordered_by: 'Ordered by', order_type: 'Order type',
+  report_filed: 'Report filed', location: 'Location', occurred_at: 'Occurred at', notes: 'Notes',
+  evidence_urls: 'Evidence', status: 'Status', void_reason: 'Void reason', voided_by: 'Voided by',
+  voided_at: 'Voided at', counts_for_warnings: 'Counts toward warnings', created_at: 'Created at',
+  updated_at: 'Updated at', deleted_at: 'Deleted at',
+  roblox_username: 'Roblox username', service_number: 'Service number', rank_id: 'Rank', squad_id: 'Squad',
+  role: 'Role', active: 'Active', code: 'Code', name: 'Name', target: 'Target', max_warnings: 'Max warnings',
+  default_action: 'Default action', requires_cs_approval: 'CS approval (⧭)', report_required: 'Report required',
+  reason: 'Reason', reset_by: 'By', logs_affected: 'Logs affected', alias_normalized: 'Alias',
+  canonical_normalized: 'Main username', note: 'Note', short_name: 'Abbreviation', sort_order: 'Order',
 };
 
 export const TABLE_LABELS = {
-  sanction_logs: 'Logs', profiles: 'Membres', offenses: 'Infractions', warning_resets: 'Remises à zéro',
-  player_aliases: 'Alias', ranks: 'Grades', squads: 'Équipes',
+  sanction_logs: 'Logs', profiles: 'Members', offenses: 'Offenses', warning_resets: 'Warning resets',
+  player_aliases: 'Aliases', ranks: 'Ranks', squads: 'Squads',
 };
 
-export const AUDIT_ACTIONS = { INSERT: 'Création', UPDATE: 'Modification', DELETE: 'Suppression' };
+export const AUDIT_ACTIONS = { INSERT: 'Created', UPDATE: 'Updated', DELETE: 'Deleted' };
 
 export const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;

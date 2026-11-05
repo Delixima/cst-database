@@ -1,9 +1,9 @@
 // Formatting and small utilities.
 
-const dateTimeFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
-const dateFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
-const longFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full', timeStyle: 'medium' });
-const relFmt = new Intl.RelativeTimeFormat('fr-FR', { numeric: 'auto' });
+const dateTimeFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+const dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' });
+const longFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'medium' });
+const relFmt = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' });
 
 export const fmtDateTime = (iso) => (iso ? dateTimeFmt.format(new Date(iso)) : '—');
 export const fmtDate = (iso) => (iso ? dateFmt.format(new Date(iso)) : '—');
@@ -30,7 +30,7 @@ export function fmtJail(seconds) {
   return `${s} s (${m} min${rest ? ' ' + rest + ' s' : ''})`;
 }
 
-export const fmtNumber = (n) => new Intl.NumberFormat('fr-FR').format(Number(n ?? 0));
+export const fmtNumber = (n) => new Intl.NumberFormat('en-GB').format(Number(n ?? 0));
 
 /** Date -> value for <input type="datetime-local"> in local time. */
 export function toLocalInput(date) {

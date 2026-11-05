@@ -26,10 +26,10 @@ boot(async () => {
   const ctx = await requireAuth({ minLevel: 2 });
   const editId = qs('edit');
   const main = renderShell(ctx, editId ? 'logs' : 'new');
-  replace(main, loadingState('Chargement du formulaire…'));
+  replace(main, loadingState('Loading the form…'));
 
   if (editId && !isUuid(editId)) {
-    replace(main, errorState('Identifiant de log invalide.'));
+    replace(main, errorState('Invalid log ID.'));
     return;
   }
 
@@ -54,13 +54,13 @@ boot(async () => {
 
   if (editId) {
     if (!existing) {
-      replace(main, errorState('Log introuvable ou inaccessible.'));
+      replace(main, errorState('Log not found or not accessible.'));
       return;
     }
     if (!canEditLog(ctx, existing)) {
-      replace(main, pageHeader(`Modifier ${existing.log_number}`),
-        errorState('Votre rôle ne permet pas de modifier ce log (un trooper ne peut modifier que ses propres logs de moins de 24 h).'),
-        h('p', null, h('a', { href: link('log.html', { id: existing.id }) }, '← Retour au log')));
+      replace(main, pageHeader(`Edit ${existing.log_number}`),
+        errorState('Your role cannot edit this log (a trooper can only edit their own logs less than 24 h old).'),
+        h('p', null, h('a', { href: link('log.html', { id: existing.id }) }, '← Back to the log')));
       return;
     }
   }
@@ -80,26 +80,26 @@ boot(async () => {
 
   const targetInput = input({
     maxlength: 20, autocomplete: 'off', spellcheck: 'false', list: 'player-suggestions',
-    placeholder: 'Pseudo Roblox exact', value: existing?.target_username ?? qs('u') ?? '',
+    placeholder: 'Exact Roblox username', value: existing?.target_username ?? qs('u') ?? '',
   });
   const datalist = h('datalist', { id: 'player-suggestions' });
-  const fTarget = field('Pseudo Roblox de la cible', targetInput, 'Texte libre, 3 à 20 caractères. Les pseudos déjà connus sont proposés.', { required: true });
+  const fTarget = field('Target Roblox username', targetInput, 'Free text, 3 to 20 characters. Known usernames are suggested.', { required: true });
 
-  const offenseSelect = h('select', { class: 'input' }, h('option', { value: '' }, '— Choisir une infraction —'));
+  const offenseSelect = h('select', { class: 'input' }, h('option', { value: '' }, '— Choose an offense —'));
   for (const p of PROCEDURE_KEYS) {
     const list = offenses.filter((o) => o.procedure === p && (o.active || o.id === existing?.offense_id));
     const group = h('optgroup', { label: `${PROCEDURES[p].label} — ${PROCEDURES[p].desc}` });
-    if (!list.length) group.append(h('option', { value: '', disabled: true }, 'Aucune infraction définie'));
+    if (!list.length) group.append(h('option', { value: '', disabled: true }, 'No offense defined'));
     for (const o of list) {
       group.append(h('option', { value: o.id },
-        `${o.code} — ${o.name}${o.requires_cs_approval ? ' ' + APPROVAL_MARK : ''}${o.active ? '' : ' (désactivée)'}`));
+        `${o.code} — ${o.name}${o.requires_cs_approval ? ' ' + APPROVAL_MARK : ''}${o.active ? '' : ' (inactive)'}`));
     }
     offenseSelect.append(group);
   }
   const presetCode = qs('offense');
   offenseSelect.value = existing?.offense_id ?? offenses.find((o) => o.code === presetCode && o.active)?.id ?? '';
   const offenseInfo = h('div', { class: 'field-hint' });
-  const fOffense = field('Infraction', offenseSelect, offenseInfo, { required: true });
+  const fOffense = field('Offense', offenseSelect, offenseInfo, { required: true });
 
   const ttRadios = Object.entries(TARGET_TYPES).map(([value, label]) => {
     const r = h('input', { type: 'radio', name: 'target_type', value });
@@ -107,55 +107,55 @@ boot(async () => {
   });
   const ttGroup = h('div', { class: 'radio-group', role: 'radiogroup', id: 'target-type' }, ttRadios.map((t) => t.el));
   const ttHint = h('span');
-  const fTargetType = field('Type de cible', ttGroup, ttHint, { required: true });
+  const fTargetType = field('Target type', ttGroup, ttHint, { required: true });
   const getTargetType = () => ttRadios.find((t) => t.r.checked)?.value ?? '';
   const setTargetType = (v) => ttRadios.forEach((t) => { t.r.checked = t.value === v; });
   setTargetType(existing?.target_type ?? '');
 
   const orderSelect = select(ORDER_TYPES, { value: existing?.order_type ?? 'none' });
-  const fOrder = field('Ordre', orderSelect, 'HICOM (C1+) et ISB peuvent ordonner n’importe quelle action sur n’importe qui.');
-  const orderedByInput = input({ maxlength: 100, placeholder: 'ex. HICOM, ISB, pseudo de l’officier', value: existing?.ordered_by ?? '' });
-  const fOrderedBy = field('Ordre donné par', orderedByInput, null, { required: true });
+  const fOrder = field('Order', orderSelect, 'HICOM (C1+) and ISB can order any action on anyone.');
+  const orderedByInput = input({ maxlength: 100, placeholder: 'e.g. HICOM, ISB, officer username', value: existing?.ordered_by ?? '' });
+  const fOrderedBy = field('Ordered by', orderedByInput, null, { required: true });
 
   const occurredInput = input({ type: 'datetime-local', value: toLocalInput(existing?.occurred_at ?? new Date()) });
   occurredInput.max = toLocalInput(new Date(Date.now() + 5 * 60 * 1000));
-  const fOccurred = field('Date et heure des faits', occurredInput, null, { required: true });
+  const fOccurred = field('Date and time of the incident', occurredInput, null, { required: true });
 
-  const actionSelect = select(ACTIONS, { value: existing?.action_taken ?? '', placeholder: '— Action prise —' });
-  const fAction = field('Action prise', actionSelect, 'Pré-remplie avec la recommandation. Vous pouvez la changer : l’écart sera enregistré.', { required: true });
+  const actionSelect = select(ACTIONS, { value: existing?.action_taken ?? '', placeholder: '— Action taken —' });
+  const fAction = field('Action taken', actionSelect, 'Pre-filled with the recommendation. You can change it: the override will be recorded.', { required: true });
 
   const jailInput = input({ type: 'number', min: 1, max: 86400, step: 1, value: existing?.jail_seconds ?? '' });
-  const fJail = field('Durée de Jail (secondes)', jailInput, 'Pré-remplie depuis le référentiel. Vide = durée par défaut de l’infraction.');
+  const fJail = field('Jail duration (seconds)', jailInput, 'Pre-filled from the catalog. Empty = the offense default.');
 
-  const overrideReason = h('textarea', { class: 'input', rows: 2, maxlength: 500, placeholder: 'Pourquoi cette action plutôt que la recommandation ?' });
+  const overrideReason = h('textarea', { class: 'input', rows: 2, maxlength: 500, placeholder: 'Why this action instead of the recommendation?' });
   overrideReason.value = existing?.override_reason ?? '';
   const overrideText = h('p', { class: 'small' });
-  const fOverride = field('Justification de l’écart', overrideReason, 'Obligatoire, sauf ordre AOS / KOS / HICOM / ISB.');
-  const overrideBox = h('div', { class: 'override-box full', hidden: true }, h('strong', null, 'Écart avec la recommandation'), overrideText, fOverride);
+  const fOverride = field('Override justification', overrideReason, 'Required, except under an AOS / KOS / HICOM / ISB order.');
+  const overrideBox = h('div', { class: 'override-box full', hidden: true }, h('strong', null, 'Override of the recommendation'), overrideText, fOverride);
 
   const approverSelect = select(
-    approvers.map((a) => ({ value: a.id, label: `${a.roblox_username ?? '(sans pseudo)'} — ${ROLES[a.role]}${a.rank?.name ? ' · ' + a.rank.name : ''}` })),
-    { value: existing?.approved_by ?? (ctx.perms.cs ? ctx.user.id : ''), placeholder: '— Sélectionner l’approbateur —' });
-  const fApprover = field(`Approbateur ${APPROVAL_MARK} (Company Sergeant ou plus)`, approverSelect,
-    'Le CS ou supérieur qui a approuvé l’arrestation. Il devra confirmer sur le site si ce n’est pas vous.', { required: true });
+    approvers.map((a) => ({ value: a.id, label: `${a.roblox_username ?? '(no username)'} — ${ROLES[a.role]}${a.rank?.name ? ' · ' + a.rank.name : ''}` })),
+    { value: existing?.approved_by ?? (ctx.perms.cs ? ctx.user.id : ''), placeholder: '— Select the approver —' });
+  const fApprover = field(`Approver ${APPROVAL_MARK} (Company Sergeant or above)`, approverSelect,
+    'The CS or above who approved the arrest. They must confirm it on the site if it is not you.', { required: true });
   const approverReq = fApprover.querySelector('.req');
 
   const agentSelect = ctx.perms.officer
-    ? select(agents.map((a) => ({ value: a.id, label: `${a.roblox_username ?? '(sans pseudo)'} — ${ROLES[a.role]}` })),
+    ? select(agents.map((a) => ({ value: a.id, label: `${a.roblox_username ?? '(no username)'} — ${ROLES[a.role]}` })),
       { value: existing?.agent_id ?? ctx.user.id })
     : null;
   const fAgent = agentSelect
-    ? field('Agent', agentSelect, 'Officiers et gérant : vous pouvez enregistrer au nom d’un autre agent.')
+    ? field('Agent', agentSelect, 'Officers and manager: you can log on behalf of another agent.')
     : field('Agent', input({ value: existing?.agent_username ?? ctx.profile.roblox_username ?? '', readOnly: true, disabled: true }));
 
-  const locationInput = input({ maxlength: 120, placeholder: 'ex. Frontière, Hangar 3, Sénat…', value: existing?.location ?? '' });
-  const fLocation = field('Lieu', locationInput);
+  const locationInput = input({ maxlength: 120, placeholder: 'e.g. Border, Hangar 3, Senate…', value: existing?.location ?? '' });
+  const fLocation = field('Location', locationInput);
 
-  const report = checkbox('Rapport fait', existing?.report_filed ?? false);
+  const report = checkbox('Report filed', existing?.report_filed ?? false);
   const reportHint = h('span');
-  const fReport = field('Rapport', report, reportHint);
+  const fReport = field('Report', report, reportHint);
 
-  const notes = h('textarea', { class: 'input', rows: 4, maxlength: 4000, placeholder: 'Contexte, déroulé, témoins…' });
+  const notes = h('textarea', { class: 'input', rows: 4, maxlength: 4000, placeholder: 'Context, sequence of events, witnesses…' });
   notes.value = existing?.notes ?? '';
   const notesCount = h('span');
   const fNotes = field('Notes', notes, notesCount, { className: 'full' });
@@ -165,22 +165,22 @@ boot(async () => {
 
   // Evidence editor
   const evidenceList = h('div', { class: 'evidence-editor' });
-  const addEvidenceBtn = button('+ Ajouter une preuve', () => addEvidence(''), 'ghost btn-sm');
-  const fEvidence = field('Preuves (liens https)', h('div', null, evidenceList, addEvidenceBtn),
-    `Captures ou vidéos hébergées (Discord, Imgur, YouTube…). ${MAX_EVIDENCE} liens maximum.`, { className: 'full' });
+  const addEvidenceBtn = button('+ Add evidence', () => addEvidence(''), 'ghost btn-sm');
+  const fEvidence = field('Evidence (https links)', h('div', null, evidenceList, addEvidenceBtn),
+    `Hosted screenshots or videos (Discord, Imgur, YouTube…). ${MAX_EVIDENCE} links maximum.`, { className: 'full' });
 
   function addEvidence(value) {
     if (evidenceList.children.length >= MAX_EVIDENCE) return;
     const url = input({ type: 'url', value, placeholder: 'https://…', maxlength: 2048, inputmode: 'url' });
     const preview = h('div');
-    const remove = button('Retirer', () => { row.remove(); syncEvidenceBtn(); }, 'ghost btn-sm', { 'aria-label': 'Retirer cette preuve' });
+    const remove = button('Remove', () => { row.remove(); syncEvidenceBtn(); }, 'ghost btn-sm', { 'aria-label': 'Remove this evidence' });
     const row = h('div', { class: 'evidence-row' }, url, remove, preview);
     const refresh = () => {
       const v = url.value.trim();
       replace(preview);
       url.classList.toggle('invalid', v !== '' && !isValidEvidenceUrl(v));
       if (isValidEvidenceUrl(v) && looksLikeImage(v)) {
-        const img = h('img', { class: 'evidence-thumb', src: v, alt: 'Aperçu', loading: 'lazy', referrerpolicy: 'no-referrer' });
+        const img = h('img', { class: 'evidence-thumb', src: v, alt: 'Preview', loading: 'lazy', referrerpolicy: 'no-referrer' });
         img.addEventListener('error', () => img.remove());
         preview.append(img);
       }
@@ -199,10 +199,10 @@ boot(async () => {
 
   // Recommendation panel
   const recoBody = h('div');
-  const recoCard = h('aside', { class: 'card reco', 'aria-live': 'polite' }, h('h2', { class: 'card-title' }, 'Calcul en direct'), recoBody);
+  const recoCard = h('aside', { class: 'card reco', 'aria-live': 'polite' }, h('h2', { class: 'card-title' }, 'Live calculation'), recoBody);
 
   const formError = h('div', { class: 'form-error', role: 'alert', hidden: true });
-  const submitBtn = h('button', { type: 'submit', class: 'btn btn-primary' }, existing ? 'Enregistrer les modifications' : 'Enregistrer le log');
+  const submitBtn = h('button', { type: 'submit', class: 'btn btn-primary' }, existing ? 'Save changes' : 'Save log');
   const cancelHref = existing ? link('log.html', { id: existing.id }) : 'dashboard.html';
 
   const form = h('form', { class: 'card', novalidate: true },
@@ -217,14 +217,14 @@ boot(async () => {
       fNotes, fEvidence),
     datalist,
     formError,
-    h('div', { class: 'form-actions' }, h('a', { class: 'btn btn-ghost', href: cancelHref }, 'Annuler'), submitBtn));
+    h('div', { class: 'form-actions' }, h('a', { class: 'btn btn-ghost', href: cancelHref }, 'Cancel'), submitBtn));
 
   const headerSub = existing
-    ? `Créé le ${fmtDateTime(existing.created_at)} par ${existing.created_by_username ?? '—'}. Les Warnings et la recommandation sont recalculés par la base à l’enregistrement.`
-    : 'Les Warnings, la recommandation et le numéro sont calculés par la base de données.';
+    ? `Created on ${fmtDateTime(existing.created_at)} by ${existing.created_by_username ?? '—'}. Warnings and the recommendation are recomputed by the database on save.`
+    : 'Warnings, the recommendation and the number are computed by the database.';
   replace(main,
-    pageHeader(existing ? `Modifier ${existing.log_number}` : 'Nouveau log', headerSub),
-    existing?.status === 'voided' ? h('div', { class: 'notice notice-warn' }, 'Ce log est annulé : il ne compte pas dans les statistiques ni les Warnings.') : null,
+    pageHeader(existing ? `Edit ${existing.log_number}` : 'New log', headerSub),
+    existing?.status === 'voided' ? h('div', { class: 'notice notice-warn' }, 'This log is voided: it does not count in statistics or warnings.') : null,
     h('div', { class: 'log-form-layout' }, form, recoCard));
 
   // ---------------------------------------------------------------- logic
@@ -241,8 +241,8 @@ boot(async () => {
     if (locked) setTargetType(offense.target);
     ttRadios.forEach((t) => { t.r.disabled = Boolean(locked); });
     ttHint.textContent = locked
-      ? `Imposé par l’infraction (${TARGET_TYPES[offense.target]}).`
-      : (offense?.target === 'both' ? 'Cette infraction s’applique au personnel comme aux immigrés.' : 'Ordre HICOM / ISB : n’importe quelle cible.');
+      ? `Set by the offense (${TARGET_TYPES[offense.target]}).`
+      : (offense?.target === 'both' ? 'This offense applies to personnel and immigrants alike.' : 'HICOM / ISB order: any target.');
     if (!offense) ttHint.textContent = '';
 
     offenseInfo.textContent = offense
@@ -258,7 +258,7 @@ boot(async () => {
       jailInput.value = offense?.jail_seconds ?? '';
     }
 
-    reportHint.textContent = offense?.report_required ? 'Rapport obligatoire pour cette infraction.' : 'Cochez quand le rapport a été rédigé.';
+    reportHint.textContent = offense?.report_required ? 'A report is required for this offense.' : 'Check once the report has been written.';
     reportHint.className = offense?.report_required ? 'flag flag-danger' : '';
 
     const rec = state.rec;
@@ -266,8 +266,8 @@ boot(async () => {
     overrideBox.hidden = !overridden;
     if (overridden) {
       overrideText.textContent =
-        `Recommandation : « ${recommendationLabel(rec.recommendation_code, rec.recommended_warning_number, rec.max_warnings)} ». ` +
-        `Action choisie : « ${ACTIONS[action]} ». Cet écart sera enregistré et signalé sur le log.`;
+        `Recommendation: "${recommendationLabel(rec.recommendation_code, rec.recommended_warning_number, rec.max_warnings)}". ` +
+        `Chosen action: "${ACTIONS[action]}". This override will be recorded and flagged on the log.`;
     }
   }
 
@@ -282,16 +282,16 @@ boot(async () => {
   function renderReco() {
     const offense = currentOffense();
     if (state.recLoading) {
-      replace(recoBody, loadingState('Calcul…'));
+      replace(recoBody, loadingState('Calculating…'));
       return;
     }
     if (state.recError) {
-      replace(recoBody, h('div', { class: 'notice notice-danger' }, `Calcul indisponible : ${errorMessage(state.recError)}. La base recalculera à l’enregistrement.`));
+      replace(recoBody, h('div', { class: 'notice notice-danger' }, `Calculation unavailable: ${errorMessage(state.recError)}. The database will recompute on save.`));
       return;
     }
     const rec = state.rec;
     if (!rec || !offense) {
-      replace(recoBody, h('p', { class: 'muted' }, 'Saisissez un pseudo valide et choisissez une infraction pour afficher les Warnings précédents et l’action recommandée.'));
+      replace(recoBody, h('p', { class: 'muted' }, 'Enter a valid username and choose an offense to see prior warnings and the recommended action.'));
       return;
     }
     const tone = actionTone(rec.recommended_action);
@@ -299,45 +299,45 @@ boot(async () => {
     const prior = rec.prior_warnings;
     const max = rec.max_warnings;
     const priorText = max === null || max === undefined
-      ? `${prior} (pas de maximum)`
-      : (max === 0 ? 'Sans objet (immédiat)' : `${prior} / ${max}`);
+      ? `${prior} (no maximum)`
+      : (max === 0 ? 'N/A (immediate)' : `${prior} / ${max}`);
 
     const alerts = [];
     if (rec.is_alias) {
-      alerts.push(h('div', { class: 'notice' }, `Ancien pseudo : ce log sera classé dans le dossier « ${rec.target_normalized} ».`));
+      alerts.push(h('div', { class: 'notice' }, `Former username: this log will be filed under the "${rec.target_normalized}" record.`));
     }
     if (rec.recommendation_code === 'arrest_authorized') {
       alerts.push(h('div', { class: 'notice notice-danger' },
-        `Maximum déjà atteint (${prior}/${max}) : ce nouveau manquement autorise l’arrestation, sans nouveau Warning.`));
+        `Maximum already reached (${prior}/${max}): this new breach authorizes the arrest, without a new warning.`));
     } else if (rec.recommendation_code === 'warning' && max && rec.recommended_warning_number === max) {
       alerts.push(h('div', { class: 'notice notice-warn' },
-        `Dernier Warning (${max}/${max}). Atteindre le maximum n’autorise pas l’arrestation : c’est le manquement suivant qui l’autorisera.`));
+        `Last warning (${max}/${max}). Reaching the maximum does not authorize the arrest: the next breach will.`));
     }
     if (rec.requires_cs_approval) {
       alerts.push(h('div', { class: 'notice notice-warn' },
-        `${APPROVAL_MARK} L’arrestation pour cette infraction exige l’approbation d’un Company Sergeant ou plus AVANT l’arrestation.`));
+        `${APPROVAL_MARK} An arrest for this offense requires approval from a Company Sergeant or above BEFORE the arrest.`));
     }
     if (rec.report_required) {
-      alerts.push(h('div', { class: 'notice notice-danger' }, 'Rapport obligatoire pour cette infraction.'));
+      alerts.push(h('div', { class: 'notice notice-danger' }, 'A report is required for this offense.'));
     }
     if (orderSelect.value === 'hicom_isb_order') {
-      alerts.push(h('div', { class: 'notice' }, 'Ordre HICOM / ISB : toute action est permise, l’écart éventuel est justifié par l’ordre.'));
+      alerts.push(h('div', { class: 'notice' }, 'HICOM / ISB order: any action is allowed; any override is justified by the order.'));
     }
 
     replace(recoBody,
       h('div', { class: `reco-main tone-${tone}` },
-        h('span', { class: 'reco-kicker' }, 'Action recommandée'),
+        h('span', { class: 'reco-kicker' }, 'Recommended action'),
         h('span', { class: 'reco-action' }, label)),
       h('ul', { class: 'reco-list' },
-        h('li', null, h('span', null, 'Warnings précédents'), h('strong', null, priorText, ' ', dots(prior, max, rec.recommendation_code === 'arrest_authorized'))),
+        h('li', null, h('span', null, 'Prior warnings'), h('strong', null, priorText, ' ', dots(prior, max, rec.recommendation_code === 'arrest_authorized'))),
         h('li', null, h('span', null, 'Jail'), h('strong', null, fmtJail(rec.jail_seconds))),
-        h('li', null, h('span', null, 'Procédure'), h('strong', null, procedureBadge(rec.procedure))),
-        h('li', null, h('span', null, `Approbation CS ${APPROVAL_MARK}`), h('strong', null, rec.requires_cs_approval ? 'Requise' : 'Non')),
-        h('li', null, h('span', null, 'Rapport obligatoire'), h('strong', null, rec.report_required ? 'Oui' : 'Non')),
-        rec.last_reset_at ? h('li', null, h('span', null, 'Dernière remise à zéro'), h('strong', null, fmtDateTime(rec.last_reset_at))) : null),
+        h('li', null, h('span', null, 'Procedure'), h('strong', null, procedureBadge(rec.procedure))),
+        h('li', null, h('span', null, `CS approval ${APPROVAL_MARK}`), h('strong', null, rec.requires_cs_approval ? 'Required' : 'No')),
+        h('li', null, h('span', null, 'Report required'), h('strong', null, rec.report_required ? 'Yes' : 'No')),
+        rec.last_reset_at ? h('li', null, h('span', null, 'Last warning reset'), h('strong', null, fmtDateTime(rec.last_reset_at))) : null),
       h('div', { class: 'reco-alerts' }, alerts),
       h('p', { class: 'small', style: { marginTop: '12px' } },
-        h('a', { href: link('player.html', { u: rec.target_normalized }), target: '_blank', rel: 'noopener' }, 'Ouvrir le dossier du joueur ↗')));
+        h('a', { href: link('player.html', { u: rec.target_normalized }), target: '_blank', rel: 'noopener' }, 'Open the player record ↗')));
   }
 
   async function refreshRec() {
@@ -387,14 +387,14 @@ boot(async () => {
     ]);
     const opts = [];
     for (const p of players.data ?? []) opts.push(h('option', { value: p.last_username }, `${p.total_logs} log(s)`));
-    for (const a of aliases.data ?? []) opts.push(h('option', { value: a.alias_normalized }, `ancien pseudo de ${a.canonical_normalized}`));
+    for (const a of aliases.data ?? []) opts.push(h('option', { value: a.alias_normalized }, `former username of ${a.canonical_normalized}`));
     replace(datalist, opts);
   }, 200);
 
   targetInput.addEventListener('input', () => { fTarget.setError(''); suggest(); refreshRecSoon(); });
   targetInput.addEventListener('blur', () => {
     const v = targetInput.value.trim();
-    if (v && !USERNAME_RE.test(v)) fTarget.setError('Pseudo invalide : 3 à 20 caractères, lettres, chiffres et _ uniquement.');
+    if (v && !USERNAME_RE.test(v)) fTarget.setError('Invalid username: 3 to 20 characters, letters, digits and _ only.');
   });
   offenseSelect.addEventListener('change', () => {
     fOffense.setError('');
@@ -429,38 +429,38 @@ boot(async () => {
     const action = actionSelect.value;
     const order = orderSelect.value;
 
-    if (!USERNAME_RE.test(targetInput.value.trim())) fail(fTarget, 'Pseudo Roblox invalide (3 à 20 caractères : lettres, chiffres, _).');
-    if (!offense) fail(fOffense, 'Choisissez une infraction.');
-    if (!getTargetType()) fail(fTargetType, 'Précisez le type de cible.');
-    if (!action) fail(fAction, 'Choisissez l’action prise.');
+    if (!USERNAME_RE.test(targetInput.value.trim())) fail(fTarget, 'Invalid Roblox username (3 to 20 characters: letters, digits, _).');
+    if (!offense) fail(fOffense, 'Choose an offense.');
+    if (!getTargetType()) fail(fTargetType, 'Specify the target type.');
+    if (!action) fail(fAction, 'Choose the action taken.');
 
     const occurred = fromLocalInput(occurredInput.value);
-    if (!occurred) fail(fOccurred, 'Date invalide.');
-    else if (new Date(occurred).getTime() > Date.now() + 5 * 60 * 1000) fail(fOccurred, 'La date des faits ne peut pas être dans le futur.');
+    if (!occurred) fail(fOccurred, 'Invalid date.');
+    else if (new Date(occurred).getTime() > Date.now() + 5 * 60 * 1000) fail(fOccurred, 'The incident date cannot be in the future.');
 
     if (order !== 'none') {
       const by = orderedByInput.value.trim();
-      if (by.length < 2 || by.length > 100) fail(fOrderedBy, 'Indiquez qui a donné l’ordre (2 à 100 caractères).');
+      if (by.length < 2 || by.length > 100) fail(fOrderedBy, 'Enter who gave the order (2 to 100 characters).');
     }
     if (JAIL_ACTIONS.has(action) && jailInput.value !== '') {
       const j = Number(jailInput.value);
-      if (!Number.isInteger(j) || j < 1 || j > 86400) fail(fJail, 'Durée de Jail : entier entre 1 et 86400 secondes.');
+      if (!Number.isInteger(j) || j < 1 || j > 86400) fail(fJail, 'Jail duration: whole number between 1 and 86400 seconds.');
     }
     const overridden = state.rec && action && action !== state.rec.recommended_action;
     const reason = overrideReason.value.trim();
-    if (overridden && order === 'none' && reason.length < 3) fail(fOverride, 'Justifiez l’écart avec la recommandation (3 caractères minimum).');
-    if (reason.length > 500) fail(fOverride, '500 caractères maximum.');
+    if (overridden && order === 'none' && reason.length < 3) fail(fOverride, 'Justify the override of the recommendation (3 characters minimum).');
+    if (reason.length > 500) fail(fOverride, '500 characters maximum.');
     if (offense?.requires_cs_approval && action === 'arrest' && !approverSelect.value) {
-      fail(fApprover, `Infraction ${APPROVAL_MARK} : l’approbateur (CS ou plus) est obligatoire pour une arrestation.`);
+      fail(fApprover, `${APPROVAL_MARK} offense: an approver (CS or above) is required for an arrest.`);
     }
-    if (locationInput.value.trim().length > 120) fail(fLocation, '120 caractères maximum.');
-    if (notes.value.length > 4000) fail(fNotes, '4000 caractères maximum.');
+    if (locationInput.value.trim().length > 120) fail(fLocation, '120 characters maximum.');
+    if (notes.value.length > 4000) fail(fNotes, '4000 characters maximum.');
 
     const urls = [...evidenceList.querySelectorAll('input')].map((i) => i.value.trim()).filter(Boolean);
     const badUrl = urls.find((u) => !isValidEvidenceUrl(u));
-    if (badUrl) fail(fEvidence, `Lien invalide (https:// obligatoire) : ${badUrl.slice(0, 80)}`);
-    else if (new Set(urls).size !== urls.length) fail(fEvidence, 'Le même lien est présent plusieurs fois.');
-    else if (urls.length > MAX_EVIDENCE) fail(fEvidence, `${MAX_EVIDENCE} liens maximum.`);
+    if (badUrl) fail(fEvidence, `Invalid link (https:// required): ${badUrl.slice(0, 80)}`);
+    else if (new Set(urls).size !== urls.length) fail(fEvidence, 'The same link appears more than once.');
+    else if (urls.length > MAX_EVIDENCE) fail(fEvidence, `${MAX_EVIDENCE} links maximum.`);
 
     return { errors, urls, offense, action, order, occurred, reason };
   }
@@ -471,7 +471,7 @@ boot(async () => {
     formError.hidden = true;
     const v = validate();
     if (v.errors.length) {
-      formError.textContent = `Le formulaire contient ${v.errors.length} erreur(s) :\n• ${v.errors.join('\n• ')}`;
+      formError.textContent = `The form has ${v.errors.length} error(s):\n• ${v.errors.join('\n• ')}`;
       formError.hidden = false;
       form.querySelector('.invalid')?.focus();
       return;
@@ -498,12 +498,12 @@ boot(async () => {
 
     state.submitting = true;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Enregistrement…';
+    submitBtn.textContent = 'Saving…';
     try {
       let id;
       if (existing) {
         const rows = unwrap(await supabase.from('sanction_logs').update(payload).eq('id', existing.id).select('id'));
-        if (!rows.length) throw new Error('Modification refusée : vous n’avez plus le droit de modifier ce log.');
+        if (!rows.length) throw new Error('Update refused: you are no longer allowed to edit this log.');
         id = existing.id;
       } else {
         id = unwrap(await supabase.from('sanction_logs').insert(payload).select('id').single()).id;
@@ -515,7 +515,7 @@ boot(async () => {
       formError.scrollIntoView({ behavior: 'smooth', block: 'center' });
       state.submitting = false;
       submitBtn.disabled = false;
-      submitBtn.textContent = existing ? 'Enregistrer les modifications' : 'Enregistrer le log';
+      submitBtn.textContent = existing ? 'Save changes' : 'Save log';
     }
   });
 

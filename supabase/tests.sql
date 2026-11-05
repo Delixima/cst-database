@@ -145,10 +145,10 @@ do $$ begin
   perform tests.ok(tests.count_rows('select 1 from public.profiles') = 1, 'pending: sees only own profile');
   perform tests.ok(tests.count_rows('select 1 from public.ranks') = 0, 'pending: sees no ranks');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
-    values (tests.offense('A5.0'), 'Someone_1', 'personnel', 'warning')$q$, 'row-level security|rôle', 'pending: cannot create a log');
-  perform tests.throws($q$select public.get_recommendation('Someone_1', tests.offense('A5.0'))$q$, 'Accès refusé', 'pending: cannot get recommendations');
-  perform tests.throws('select public.dashboard_stats()', 'Accès refusé', 'pending: cannot read dashboard');
-  perform tests.throws($q$update public.profiles set role = 'trooper' where id = tests.id('pending')$q$, 'gérant', 'pending: cannot validate itself');
+    values (tests.offense('A5.0'), 'Someone_1', 'personnel', 'warning')$q$, 'row-level security|role', 'pending: cannot create a log');
+  perform tests.throws($q$select public.get_recommendation('Someone_1', tests.offense('A5.0'))$q$, 'Access denied', 'pending: cannot get recommendations');
+  perform tests.throws('select public.dashboard_stats()', 'Access denied', 'pending: cannot read dashboard');
+  perform tests.throws($q$update public.profiles set role = 'trooper' where id = tests.id('pending')$q$, 'manager', 'pending: cannot validate itself');
   perform tests.ok(tests.affected($q$update public.profiles set roblox_username = 'Test_Pending_2' where id = tests.id('pending')$q$) = 1,
     'pending: can fix own Roblox username');
 end $$;
@@ -159,7 +159,7 @@ do $$ begin
   perform tests.ok(tests.count_rows('select 1 from public.sanction_logs') = 0, 'inactive: sees no logs');
   perform tests.ok(tests.count_rows('select 1 from public.offenses') = 0, 'inactive: sees no offenses');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
-    values (tests.offense('A5.0'), 'Someone_1', 'personnel', 'warning')$q$, 'row-level security|rôle', 'inactive: cannot create a log');
+    values (tests.offense('A5.0'), 'Someone_1', 'personnel', 'warning')$q$, 'row-level security|role', 'inactive: cannot create a log');
 end $$;
 reset role;
 
@@ -201,7 +201,7 @@ begin
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
     values (tests.offense('A6.0'), 'Bad_Guy_3', 'personnel', 'arrest')$q$, 'justification', 'override: reason required');
   insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, override_reason)
-  values (tests.offense('A6.0'), 'Bad_Guy_3', 'personnel', 'arrest', 'Refus répété devant témoins') returning * into l;
+  values (tests.offense('A6.0'), 'Bad_Guy_3', 'personnel', 'arrest', 'Repeated refusal in front of witnesses') returning * into l;
   perform tests.ok(l.is_override and l.recommended_action = 'warning', 'override: recorded with the recommendation');
 
   -- Target type is forced by the offense
@@ -211,9 +211,9 @@ begin
 
   -- ⧭ approval
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
-    values (tests.offense('A12.0'), 'Bad_Guy_4', 'personnel', 'arrest')$q$, 'approbation', '⧭: arrest without approver refused');
+    values (tests.offense('A12.0'), 'Bad_Guy_4', 'personnel', 'arrest')$q$, 'approval', '⧭: arrest without approver refused');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, approved_by)
-    values (tests.offense('A12.0'), 'Bad_Guy_4', 'personnel', 'arrest', tests.id('trooper_b'))$q$, 'approbateur', '⧭: a trooper cannot approve');
+    values (tests.offense('A12.0'), 'Bad_Guy_4', 'personnel', 'arrest', tests.id('trooper_b'))$q$, 'approver', '⧭: a trooper cannot approve');
   insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, approved_by, report_filed)
   values (tests.offense('A12.0'), 'Bad_Guy_4', 'personnel', 'arrest', tests.id('cs_b'), false) returning * into l;
   perform tests.ok(l.approval_confirmed_at is null, '⧭: arrest approved by a CS, awaiting confirmation');
@@ -222,7 +222,7 @@ begin
 
   -- Orders
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, order_type)
-    values (tests.offense('T1.0'), 'Kos_1', 'immigrant', 'termination', 'kill_on_sight')$q$, 'ordre', 'order: issuer required');
+    values (tests.offense('T1.0'), 'Kos_1', 'immigrant', 'termination', 'kill_on_sight')$q$, 'order', 'order: issuer required');
   insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, order_type, ordered_by)
   values (tests.offense('T1.0'), 'Kos_1', 'immigrant', 'termination', 'kill_on_sight', 'HICOM') returning * into l;
   perform tests.ok(l.recommendation_code = 'order_kill' and not l.is_override, 'order: KOS termination');
@@ -236,31 +236,31 @@ begin
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, evidence_urls)
     values (tests.offense('D1.0'), 'Lost_2', 'personnel', 'relocation', array['javascript:alert(1)'])$q$, 'evidence_urls', 'validation: non-https evidence refused');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
-    values (tests.offense('D1.0'), 'bad name!', 'personnel', 'relocation')$q$, 'Pseudo Roblox invalide', 'validation: invalid username refused');
+    values (tests.offense('D1.0'), 'bad name!', 'personnel', 'relocation')$q$, 'Invalid Roblox username', 'validation: invalid username refused');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, occurred_at)
-    values (tests.offense('D1.0'), 'Lost_3', 'personnel', 'relocation', now() + interval '1 day')$q$, 'futur', 'validation: future date refused');
+    values (tests.offense('D1.0'), 'Lost_3', 'personnel', 'relocation', now() + interval '1 day')$q$, 'future', 'validation: future date refused');
 
   -- Permissions
   perform tests.throws(format($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken, agent_id)
-    values (tests.offense('A5.0'), 'Other_1', 'personnel', 'warning', %L)$q$, tests.id('trooper_b')), 'row-level security|officiers', 'trooper: cannot log on behalf of someone else');
+    values (tests.offense('A5.0'), 'Other_1', 'personnel', 'warning', %L)$q$, tests.id('trooper_b')), 'row-level security|officers', 'trooper: cannot log on behalf of someone else');
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'ok' where id = %L$q$, tests.id('log_trooper_a_arrest'))) = 1,
     'trooper: edits own recent log');
   perform tests.throws(format($q$update public.sanction_logs set status = 'voided', void_reason = 'test' where id = %L$q$, tests.id('log_trooper_a_arrest')),
-    'officiers', 'trooper: cannot void');
+    'officers', 'trooper: cannot void');
   perform tests.throws(format($q$update public.sanction_logs set deleted_at = now() where id = %L$q$, tests.id('log_trooper_a_arrest')),
-    'gérant', 'trooper: cannot soft delete');
+    'manager', 'trooper: cannot soft delete');
   perform tests.throws(format($q$update public.sanction_logs set counts_for_warnings = false where id = %L$q$, tests.id('log_trooper_a_arrest')),
-    'officiers', 'trooper: cannot reset warnings by hand');
+    'officers', 'trooper: cannot reset warnings by hand');
   perform tests.ok(tests.affected(format('delete from public.sanction_logs where id = %L', tests.id('log_trooper_a_arrest'))) = 0,
     'trooper: cannot hard delete');
   perform tests.throws($q$insert into public.warning_resets (target_normalized, reason) values ('bad_guy_1', 'test')$q$,
-    'officiers|row-level security', 'trooper: cannot reset warnings');
-  perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'gérant', 'trooper: cannot merge players');
+    'officers|row-level security', 'trooper: cannot reset warnings');
+  perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'manager', 'trooper: cannot merge players');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'trooper: cannot read audit_log');
   perform tests.ok(tests.affected($q$update public.offenses set name = 'hack' where code = 'A5.0'$q$) = 0, 'trooper: cannot edit offenses');
   perform tests.throws($q$insert into public.offenses (code, procedure, name, target, default_action) values ('L1.0', 'lima', 'Test', 'immigrant', 'search')$q$,
     'row-level security', 'trooper: cannot create offenses');
-  perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('trooper_a')$q$, 'gérant', 'trooper: cannot promote itself');
+  perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('trooper_a')$q$, 'manager', 'trooper: cannot promote itself');
   perform tests.ok(tests.affected($q$update public.profiles set roblox_username = 'Hacked_1' where id = tests.id('trooper_b')$q$) = 0,
     'trooper: cannot edit another profile');
   perform tests.ok(tests.count_rows('select 1 from public.profiles') >= 9, 'trooper: reads member list');
@@ -304,9 +304,9 @@ do $$ begin
   perform tests.ok(public.dashboard_stats() -> 'pending_approvals' = 'null'::jsonb, 'read_only: no pending approvals figure');
   perform tests.ok(tests.count_rows(format('select * from public.get_log_history(%L)', tests.id('log_trooper_a_arrest'))) >= 2, 'read_only: reads log history');
   perform tests.throws($q$insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
-    values (tests.offense('A5.0'), 'Someone_2', 'personnel', 'warning')$q$, 'row-level security|rôle', 'read_only: cannot create a log');
+    values (tests.offense('A5.0'), 'Someone_2', 'personnel', 'warning')$q$, 'row-level security|role', 'read_only: cannot create a log');
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'x' where id = %L$q$, tests.id('log_trooper_b'))) = 0, 'read_only: cannot edit logs');
-  perform tests.throws($q$select public.get_recommendation('Someone_2', tests.offense('A5.0'))$q$, 'Accès refusé', 'read_only: no recommendation RPC');
+  perform tests.throws($q$select public.get_recommendation('Someone_2', tests.offense('A5.0'))$q$, 'Access denied', 'read_only: no recommendation RPC');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'read_only: cannot read audit_log');
 end $$;
 reset role;
@@ -320,15 +320,15 @@ do $$ begin
   perform public.confirm_approval(tests.id('log_pending_approval'));
   perform tests.ok((select approval_confirmed_by from public.sanction_logs where id = tests.id('log_pending_approval')) = tests.id('cs_a'),
     'cs: confirms a ⧭ approval');
-  perform tests.throws(format('select public.confirm_approval(%L)', tests.id('log_pending_approval')), 'déjà confirmée', 'cs: cannot confirm twice');
+  perform tests.throws(format('select public.confirm_approval(%L)', tests.id('log_pending_approval')), 'already confirmed', 'cs: cannot confirm twice');
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'cs edit' where id = %L$q$, tests.id('log_trooper_a_arrest'))) = 1,
     'cs: edits a log of own squad');
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set notes = 'cs edit' where id = %L$q$, tests.id('log_trooper_b'))) = 0,
     'cs: cannot edit a log of another squad');
   perform tests.throws(format($q$update public.sanction_logs set status = 'voided', void_reason = 'test' where id = %L$q$, tests.id('log_trooper_a_arrest')),
-    'officiers', 'cs: cannot void');
+    'officers', 'cs: cannot void');
   perform tests.throws($q$insert into public.warning_resets (target_normalized, reason) values ('bad_guy_1', 'test')$q$,
-    'officiers|row-level security', 'cs: cannot reset warnings');
+    'officers|row-level security', 'cs: cannot reset warnings');
 end $$;
 reset role;
 
@@ -340,13 +340,13 @@ do $$
 declare v_reset public.warning_resets%rowtype; r jsonb; l public.sanction_logs%rowtype;
 begin
   perform tests.throws(format($q$update public.sanction_logs set status = 'voided' where id = %L$q$, tests.id('log_trooper_b')),
-    'motif', 'officer: void requires a reason');
-  perform tests.ok(tests.affected(format($q$update public.sanction_logs set status = 'voided', void_reason = 'Erreur de cible' where id = %L$q$, tests.id('log_trooper_b'))) = 1,
+    'void reason', 'officer: void requires a reason');
+  perform tests.ok(tests.affected(format($q$update public.sanction_logs set status = 'voided', void_reason = 'Wrong target' where id = %L$q$, tests.id('log_trooper_b'))) = 1,
     'officer: voids any log');
   perform tests.ok((select voided_by from public.sanction_logs where id = tests.id('log_trooper_b')) = tests.id('officer'), 'officer: voided_by recorded');
 
   insert into public.warning_resets (target_normalized, offense_id, reason)
-  values ('BAD_GUY_1', tests.offense('A5.0'), 'Bonne conduite') returning * into v_reset;
+  values ('BAD_GUY_1', tests.offense('A5.0'), 'Good conduct') returning * into v_reset;
   perform tests.ok(v_reset.logs_affected = 4 and v_reset.reset_by = tests.id('officer'), 'officer: resets warnings (4 logs flagged)', v_reset.logs_affected::text);
   r := public.get_recommendation('Bad_Guy_1', tests.offense('A5.0'));
   perform tests.ok(r ->> 'recommendation_code' = 'warning' and (r ->> 'recommended_warning_number')::int = 1, 'reset: back to Warning 1/3', r::text);
@@ -355,11 +355,11 @@ begin
   values (tests.offense('A5.0'), 'Bad_Guy_6', 'personnel', 'warning', tests.id('trooper_a')) returning * into l;
   perform tests.ok(l.agent_id = tests.id('trooper_a') and l.created_by = tests.id('officer'), 'officer: logs on behalf of a trooper');
 
-  perform tests.throws(format($q$update public.sanction_logs set deleted_at = now() where id = %L$q$, l.id), 'gérant', 'officer: cannot soft delete');
+  perform tests.throws(format($q$update public.sanction_logs set deleted_at = now() where id = %L$q$, l.id), 'manager', 'officer: cannot soft delete');
   perform tests.ok(tests.affected(format('delete from public.sanction_logs where id = %L', l.id)) = 0, 'officer: cannot hard delete');
-  perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'gérant', 'officer: cannot merge');
+  perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'manager', 'officer: cannot merge');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'officer: cannot read audit_log');
-  perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('officer')$q$, 'gérant', 'officer: cannot change its own role');
+  perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('officer')$q$, 'manager', 'officer: cannot change its own role');
   perform tests.ok(tests.affected($q$update public.profiles set role = 'officer' where id = tests.id('trooper_a')$q$) = 0, 'officer: cannot change others'' roles');
 end $$;
 reset role;
@@ -372,15 +372,15 @@ do $$
 declare n integer; l public.sanction_logs%rowtype;
 begin
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') > 20, 'manager: reads audit_log');
-  perform tests.throws('delete from public.audit_log', 'permission denied|ajout seul', 'manager: cannot delete audit entries');
-  perform tests.throws('update public.audit_log set action = ''INSERT''', 'permission denied|ajout seul', 'manager: cannot alter audit entries');
+  perform tests.throws('delete from public.audit_log', 'permission denied|append-only', 'manager: cannot delete audit entries');
+  perform tests.throws('update public.audit_log set action = ''INSERT''', 'permission denied|append-only', 'manager: cannot alter audit entries');
 
-  perform tests.throws($q$update public.profiles set role = 'officer' where id = tests.id('manager')$q$, 'dernier gérant', 'manager: last active manager protected');
+  perform tests.throws($q$update public.profiles set role = 'officer' where id = tests.id('manager')$q$, 'last active manager', 'manager: last active manager protected');
   perform tests.ok(tests.affected($q$update public.profiles set role = 'cs' where id = tests.id('trooper_b')$q$) = 1, 'manager: changes roles');
 
   perform tests.ok(tests.affected(format($q$update public.sanction_logs set deleted_at = now() where id = %L$q$, tests.id('log_trooper_b'))) = 1, 'manager: soft deletes');
 
-  n := public.merge_players('Bad_Guy_1', 'Good_Guy_1', 'Changement de pseudo');
+  n := public.merge_players('Bad_Guy_1', 'Good_Guy_1', 'Username change');
   perform tests.ok(n = 4, 'manager: merges two usernames', n::text);
   insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
   values (tests.offense('A5.0'), 'bad_guy_1', 'personnel', 'warning') returning * into l;
@@ -412,7 +412,7 @@ reset role;
 
 -- Even the table owner cannot rewrite history
 do $$ begin
-  perform tests.throws('delete from public.audit_log', 'ajout seul', 'owner: audit_log is append-only');
+  perform tests.throws('delete from public.audit_log', 'append-only', 'owner: audit_log is append-only');
 end $$;
 
 -- -----------------------------------------------------------------------------

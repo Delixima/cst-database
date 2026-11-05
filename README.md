@@ -104,6 +104,18 @@ Le script simule chaque rôle comme le fait l'API Supabase (`SET ROLE authentica
 
 > Relancez `tests.sql` après chaque modification du schéma.
 
+### Migrations
+
+`schema.sql` contient toujours la version complète et à jour : une installation neuve n'exécute que ce fichier.
+
+Une base déjà installée se met à jour avec les fichiers de `supabase/migrations/`, exécutés une seule fois dans l'ordre de leur nom, puis en relançant `tests.sql` :
+
+| Fichier | Contenu |
+|---|---|
+| `20261105_english_messages.sql` | Messages d'erreur de la base en anglais (recrée 11 fonctions, aucune donnée touchée) |
+
+L'interface du site est entièrement en anglais. Seule cette documentation reste en français.
+
 ---
 
 ## 5. Configurer l'authentification

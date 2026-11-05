@@ -44,8 +44,7 @@ create extension if not exists pg_trgm with schema extensions;
 -- -----------------------------------------------------------------------------
 -- 1. Enum types
 -- -----------------------------------------------------------------------------
--- manager = gerant, officer = officier, cs = Company Sergeant,
--- trooper, read_only = lecture_seule, pending = en_attente
+-- manager, officer, cs = Company Sergeant, trooper, read_only, pending
 create type public.app_role as enum ('manager', 'officer', 'cs', 'trooper', 'read_only', 'pending');
 
 create type public.procedure_code as enum ('alpha', 'foxtrot', 'tango', 'delta', 'lima', 'hotel');
@@ -56,8 +55,7 @@ create type public.offense_target as enum ('personnel', 'immigrant', 'both');
 -- Who the sanctioned player actually was
 create type public.target_type as enum ('personnel', 'immigrant');
 
--- warning = avertissement, arrest = arrestation, termination = terminaison,
--- relocation = deplacement (cuff out), search = fouille, detention = detention
+-- relocation = cuff out
 create type public.sanction_action as enum ('warning', 'arrest', 'termination', 'relocation', 'search', 'detention');
 
 create type public.order_type as enum ('none', 'arrest_on_sight', 'kill_on_sight', 'hicom_isb_order');
@@ -137,7 +135,7 @@ $$;
 -- 3. Tables
 -- -----------------------------------------------------------------------------
 
--- Editable list of ranks (grades).
+-- Editable list of ranks.
 create table public.ranks (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(btrim(name)) between 2 and 50),
@@ -148,7 +146,7 @@ create table public.ranks (
   updated_at  timestamptz not null default now()
 );
 
--- Squads (equipes). A CS may edit logs written by members of their squad.
+-- Squads. A CS may edit logs written by members of their squad.
 create table public.squads (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(btrim(name)) between 2 and 50),
@@ -256,7 +254,7 @@ create table public.sanction_logs (
   )
 );
 
--- Warning resets ("remise a zero") for a player, for one offense or all (offense_id NULL).
+-- Warning resets for a player, for one offense or all (offense_id NULL).
 create table public.warning_resets (
   id                 uuid primary key default gen_random_uuid(),
   target_normalized  text not null check (target_normalized ~ '^[a-z0-9_]{3,20}$'),
@@ -439,7 +437,7 @@ declare
 begin
   select * into o from public.offenses where id = p_offense_id;
   if not found then
-    raise exception 'Infraction inconnue.' using errcode = 'P0002';
+    raise exception 'Unknown offense.' using errcode = 'P0002';
   end if;
 
   select count(*)::integer into prior_warnings
@@ -564,7 +562,7 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  raise exception 'Le journal d''audit est en ajout seul : modification et suppression interdites.'
+  raise exception 'The audit log is append-only: updates and deletions are forbidden.'
     using errcode = '42501';
 end;
 $$;
@@ -607,16 +605,16 @@ declare
   v_system boolean := private.is_system_context();
 begin
   if new.id <> old.id or new.created_at <> old.created_at then
-    raise exception 'Champs non modifiables (id, created_at).' using errcode = '42501';
+    raise exception 'Read-only fields (id, created_at).' using errcode = '42501';
   end if;
 
   if not v_system and not private.is_manager() then
     if auth.uid() is distinct from old.id then
-      raise exception 'Vous ne pouvez modifier que votre propre profil.' using errcode = '42501';
+      raise exception 'You can only edit your own profile.' using errcode = '42501';
     end if;
     if (new.role, new.active, new.rank_id, new.squad_id, new.service_number)
        is distinct from (old.role, old.active, old.rank_id, old.squad_id, old.service_number) then
-      raise exception 'Seul le gérant peut modifier le rôle, le statut, le grade, l''équipe ou le matricule.'
+      raise exception 'Only the manager can change the role, status, rank, squad or service number.'
         using errcode = '42501';
     end if;
   end if;
@@ -626,7 +624,7 @@ begin
       select 1 from public.profiles p
       where p.role = 'manager' and p.active and p.id <> old.id
     ) then
-      raise exception 'Impossible de retirer le dernier gérant actif.' using errcode = '23514';
+      raise exception 'The last active manager cannot be removed.' using errcode = '23514';
     end if;
   end if;
 
@@ -688,13 +686,13 @@ begin
   if tg_op = 'INSERT' then
     if not v_system then
       if v_level < 2 then
-        raise exception 'Votre rôle ne permet pas de créer des logs.' using errcode = '42501';
+        raise exception 'Your role cannot create logs.' using errcode = '42501';
       end if;
       if new.agent_id is null then
         new.agent_id := v_uid;
       end if;
       if new.agent_id <> v_uid and v_level < 4 then
-        raise exception 'Seuls les officiers peuvent enregistrer un log au nom d''un autre agent.' using errcode = '42501';
+        raise exception 'Only officers can log on behalf of another agent.' using errcode = '42501';
       end if;
     end if;
 
@@ -722,7 +720,7 @@ begin
   else -- UPDATE
     if new.id <> old.id or new.log_number <> old.log_number
        or new.created_at <> old.created_at or new.created_by <> old.created_by then
-      raise exception 'Champs non modifiables (id, numéro, date de création, créateur).' using errcode = '42501';
+      raise exception 'Read-only fields (id, number, creation date, creator).' using errcode = '42501';
     end if;
 
     -- Is this update only an approval confirmation?
@@ -732,44 +730,44 @@ begin
 
     if not v_system then
       if v_level < 2 then
-        raise exception 'Votre rôle ne permet pas de modifier des logs.' using errcode = '42501';
+        raise exception 'Your role cannot edit logs.' using errcode = '42501';
       end if;
       if old.deleted_at is not null and v_level < 5 then
-        raise exception 'Ce log est supprimé.' using errcode = '42501';
+        raise exception 'This log is deleted.' using errcode = '42501';
       end if;
 
       if v_only_approval then
         if v_level < 3 then
-          raise exception 'Seuls les CS, officiers et le gérant peuvent confirmer une approbation.' using errcode = '42501';
+          raise exception 'Only a CS, an officer or the manager can confirm an approval.' using errcode = '42501';
         end if;
       else
         if v_role = 'trooper' and (old.agent_id <> v_uid or old.created_at < now() - interval '24 hours') then
-          raise exception 'Un trooper ne peut modifier que ses propres logs de moins de 24 h.' using errcode = '42501';
+          raise exception 'A trooper can only edit their own logs less than 24 h old.' using errcode = '42501';
         end if;
         if v_role = 'cs' and old.agent_id <> v_uid and not private.same_squad(old.agent_id) then
-          raise exception 'Un CS ne peut modifier que ses logs et ceux de son équipe.' using errcode = '42501';
+          raise exception 'A CS can only edit their own logs and those of their squad.' using errcode = '42501';
         end if;
         if new.deleted_at is distinct from old.deleted_at and v_level < 5 then
-          raise exception 'Seul le gérant peut supprimer ou restaurer un log.' using errcode = '42501';
+          raise exception 'Only the manager can delete or undelete a log.' using errcode = '42501';
         end if;
         if new.agent_id <> old.agent_id and v_level < 4 then
-          raise exception 'Seuls les officiers peuvent changer l''agent d''un log.' using errcode = '42501';
+          raise exception 'Only officers can change the agent of a log.' using errcode = '42501';
         end if;
         if new.status <> old.status and v_level < 4 then
-          raise exception 'Seuls les officiers et le gérant peuvent annuler ou rétablir un log.' using errcode = '42501';
+          raise exception 'Only officers and the manager can void or restore a log.' using errcode = '42501';
         end if;
         if new.counts_for_warnings <> old.counts_for_warnings and v_level < 4 then
-          raise exception 'Seuls les officiers et le gérant peuvent remettre à zéro des avertissements.' using errcode = '42501';
+          raise exception 'Only officers and the manager can reset warnings.' using errcode = '42501';
         end if;
       end if;
 
       if (new.approval_confirmed_by is distinct from old.approval_confirmed_by)
          or (new.approval_confirmed_at is distinct from old.approval_confirmed_at) then
         if v_level < 3 then
-          raise exception 'Seuls les CS, officiers et le gérant peuvent confirmer une approbation.' using errcode = '42501';
+          raise exception 'Only a CS, an officer or the manager can confirm an approval.' using errcode = '42501';
         end if;
         if new.approval_confirmed_by is not null and new.approval_confirmed_by <> v_uid then
-          raise exception 'Vous ne pouvez confirmer une approbation qu''en votre nom.' using errcode = '42501';
+          raise exception 'You can only confirm an approval in your own name.' using errcode = '42501';
         end if;
       end if;
     end if;
@@ -782,7 +780,7 @@ begin
     if new.status = 'voided' and old.status = 'valid' then
       new.void_reason := nullif(btrim(new.void_reason), '');
       if new.void_reason is null or char_length(new.void_reason) < 3 then
-        raise exception 'Un motif d''annulation (3 caractères minimum) est obligatoire.' using errcode = '23514';
+        raise exception 'A void reason (3 characters minimum) is required.' using errcode = '23514';
       end if;
       new.voided_by := v_uid;
       new.voided_at := now();
@@ -812,7 +810,7 @@ begin
   ---------------------------------------------------------------------------
   new.target_username := btrim(new.target_username);
   if not private.is_valid_username(new.target_username) then
-    raise exception 'Pseudo Roblox invalide (3 à 20 caractères : lettres, chiffres, _).' using errcode = '23514';
+    raise exception 'Invalid Roblox username (3 to 20 characters: letters, digits, _).' using errcode = '23514';
   end if;
 
   if tg_op = 'INSERT' or new.target_username is distinct from old.target_username then
@@ -835,11 +833,11 @@ begin
     new.occurred_at := now();
   end if;
   if new.occurred_at > now() + interval '5 minutes' then
-    raise exception 'La date des faits ne peut pas être dans le futur.' using errcode = '23514';
+    raise exception 'The incident date cannot be in the future.' using errcode = '23514';
   end if;
 
   if new.order_type <> 'none' and new.ordered_by is null then
-    raise exception 'Indiquez qui a donné l''ordre (ex : HICOM, ISB, nom de l''officier).' using errcode = '23514';
+    raise exception 'Enter who gave the order (e.g. HICOM, ISB, officer username).' using errcode = '23514';
   end if;
 
   ---------------------------------------------------------------------------
@@ -847,10 +845,10 @@ begin
   ---------------------------------------------------------------------------
   select * into v_offense from public.offenses where id = new.offense_id;
   if not found then
-    raise exception 'Infraction inconnue.' using errcode = '23503';
+    raise exception 'Unknown offense.' using errcode = '23503';
   end if;
   if not v_offense.active and (tg_op = 'INSERT' or new.offense_id <> old.offense_id) then
-    raise exception 'L''infraction % est désactivée.', v_offense.code using errcode = '23514';
+    raise exception 'Offense % is inactive.', v_offense.code using errcode = '23514';
   end if;
 
   new.procedure := v_offense.procedure;
@@ -859,7 +857,7 @@ begin
     -- Target type is implied by the offense (HICOM/ISB orders may target anyone)
     new.target_type := v_offense.target::text::public.target_type;
   elsif new.target_type is null then
-    raise exception 'Précisez le type de cible (personnel ou immigré).' using errcode = '23502';
+    raise exception 'Specify the target type (personnel or immigrant).' using errcode = '23502';
   end if;
 
   ---------------------------------------------------------------------------
@@ -910,7 +908,7 @@ begin
   end if;
 
   if new.is_override and new.order_type = 'none' and new.override_reason is null then
-    raise exception 'L''action choisie diffère de l''action recommandée : une justification est obligatoire.'
+    raise exception 'The chosen action differs from the recommended action: a justification is required.'
       using errcode = '23514';
   end if;
 
@@ -923,7 +921,7 @@ begin
       from public.profiles p
       where p.id = new.approved_by and p.active;
       if private.role_level(v_approver_role) < 3 then
-        raise exception 'L''approbateur doit être un Company Sergeant, un officier ou le gérant actif.'
+        raise exception 'The approver must be an active Company Sergeant, officer or manager.'
           using errcode = '23514';
       end if;
     end if;
@@ -941,7 +939,7 @@ begin
      and new.action_taken = 'arrest'
      and new.status = 'valid'
      and new.approved_by is null then
-    raise exception 'Infraction ⧭ % : une arrestation exige l''approbation d''un Company Sergeant ou plus.', v_offense.code
+    raise exception '⧭ offense %: an arrest requires approval from a Company Sergeant or above.', v_offense.code
       using errcode = '23514';
   end if;
 
@@ -963,14 +961,14 @@ declare
 begin
   if not private.is_system_context() then
     if not private.is_officer_plus() then
-      raise exception 'Seuls les officiers et le gérant peuvent remettre des avertissements à zéro.'
+      raise exception 'Only officers and the manager can reset warnings.'
         using errcode = '42501';
     end if;
     new.reset_by := auth.uid();
   end if;
 
   if not private.is_valid_username(btrim(new.target_normalized)) then
-    raise exception 'Pseudo Roblox invalide.' using errcode = '23514';
+    raise exception 'Invalid Roblox username.' using errcode = '23514';
   end if;
 
   new.target_normalized := private.resolve_player(new.target_normalized);
@@ -1127,10 +1125,10 @@ declare
   r record;
 begin
   if not private.is_writer() then
-    raise exception 'Accès refusé.' using errcode = '42501';
+    raise exception 'Access denied.' using errcode = '42501';
   end if;
   if not private.is_valid_username(btrim(p_target_username)) then
-    raise exception 'Pseudo Roblox invalide.' using errcode = '22023';
+    raise exception 'Invalid Roblox username.' using errcode = '22023';
   end if;
 
   v_target := private.resolve_player(p_target_username);
@@ -1166,18 +1164,18 @@ declare
   v_log public.sanction_logs%rowtype;
 begin
   if not private.is_cs_plus() then
-    raise exception 'Seuls les CS, officiers et le gérant peuvent confirmer une approbation.' using errcode = '42501';
+    raise exception 'Only a CS, an officer or the manager can confirm an approval.' using errcode = '42501';
   end if;
 
   select * into v_log from public.sanction_logs where id = p_log_id and deleted_at is null;
   if not found then
-    raise exception 'Log introuvable.' using errcode = 'P0002';
+    raise exception 'Log not found.' using errcode = 'P0002';
   end if;
   if v_log.approved_by is null then
-    raise exception 'Ce log n''a pas d''approbateur à confirmer.' using errcode = '22023';
+    raise exception 'This log has no approver to confirm.' using errcode = '22023';
   end if;
   if v_log.approval_confirmed_at is not null then
-    raise exception 'Cette approbation est déjà confirmée.' using errcode = '22023';
+    raise exception 'This approval is already confirmed.' using errcode = '22023';
   end if;
 
   update public.sanction_logs
@@ -1198,19 +1196,19 @@ declare
   v_count integer;
 begin
   if not private.is_manager() then
-    raise exception 'Seul le gérant peut fusionner des pseudos.' using errcode = '42501';
+    raise exception 'Only the manager can merge usernames.' using errcode = '42501';
   end if;
   if not private.is_valid_username(btrim(p_from)) or not private.is_valid_username(btrim(p_into)) then
-    raise exception 'Pseudo Roblox invalide.' using errcode = '22023';
+    raise exception 'Invalid Roblox username.' using errcode = '22023';
   end if;
   if p_note is not null and char_length(p_note) > 500 then
-    raise exception 'Note trop longue (500 caractères max).' using errcode = '22023';
+    raise exception 'Note too long (500 characters max).' using errcode = '22023';
   end if;
 
   v_from := private.resolve_player(p_from);
   v_into := private.resolve_player(p_into);
   if v_from = v_into then
-    raise exception 'Ces deux pseudos désignent déjà le même joueur.' using errcode = '22023';
+    raise exception 'These two usernames already refer to the same player.' using errcode = '22023';
   end if;
 
   insert into public.player_aliases (alias_normalized, canonical_normalized, note, created_by)
@@ -1237,14 +1235,14 @@ declare
   v_count integer;
 begin
   if not private.is_manager() then
-    raise exception 'Seul le gérant peut défaire une fusion.' using errcode = '42501';
+    raise exception 'Only the manager can undo a merge.' using errcode = '42501';
   end if;
 
   delete from public.player_aliases
    where alias_normalized = v_alias
   returning canonical_normalized into v_canon;
   if v_canon is null then
-    raise exception 'Alias introuvable.' using errcode = 'P0002';
+    raise exception 'Alias not found.' using errcode = 'P0002';
   end if;
 
   update public.sanction_logs
@@ -1274,13 +1272,13 @@ as $$
 #variable_conflict use_column
 begin
   if not private.is_reader() then
-    raise exception 'Accès refusé.' using errcode = '42501';
+    raise exception 'Access denied.' using errcode = '42501';
   end if;
   if not exists (
     select 1 from public.sanction_logs l
     where l.id = p_log_id and (l.deleted_at is null or private.is_manager())
   ) then
-    raise exception 'Log introuvable.' using errcode = 'P0002';
+    raise exception 'Log not found.' using errcode = 'P0002';
   end if;
 
   return query
@@ -1308,7 +1306,7 @@ declare
   v_result      jsonb;
 begin
   if not private.is_reader() then
-    raise exception 'Accès refusé.' using errcode = '42501';
+    raise exception 'Access denied.' using errcode = '42501';
   end if;
 
   v_tz := case when exists (select 1 from pg_catalog.pg_timezone_names where name = p_tz) then p_tz else 'UTC' end;
@@ -1572,6 +1570,6 @@ values
   -- Delta: cuff & relocate (cuff out) + warning, no max defined
   ('D1.0',  'delta', 'Imperial personnel enters a restricted area',                   'personnel', null, null, 'relocation', false, false);
   -- Lima (search) and Hotel (detention): no offenses defined yet (TBD in the guide).
-  -- The manager adds them from the "Référentiel des infractions" page.
+  -- The manager adds them from the "Offense catalog" page.
 
 commit;

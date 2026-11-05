@@ -15,13 +15,13 @@ boot(async () => {
   const ctx = await requireAuth({ minLevel: 1 });
   const main = renderShell(ctx, 'dashboard');
 
-  const actions = ctx.perms.write ? [h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ Nouveau log')] : [];
-  const header = pageHeader('Tableau de bord', `Bienvenue, ${ctx.profile.roblox_username ?? 'trooper'}.`, ...actions);
-  const body = h('div', { class: 'stack' }, loadingState('Chargement des statistiques…'));
+  const actions = ctx.perms.write ? [h('a', { class: 'btn btn-primary', href: 'log-new.html' }, '+ New log')] : [];
+  const header = pageHeader('Dashboard', `Welcome, ${ctx.profile.roblox_username ?? 'trooper'}.`, ...actions);
+  const body = h('div', { class: 'stack' }, loadingState('Loading statistics…'));
   replace(main, header, body);
 
   async function load() {
-    replace(body, loadingState('Chargement des statistiques…'));
+    replace(body, loadingState('Loading statistics…'));
     try {
       const [stats, recent, pending] = await Promise.all([
         supabase.rpc('dashboard_stats', { p_tz: browserTimezone() }).then(unwrap),
@@ -61,7 +61,7 @@ boot(async () => {
     const items = ACTION_KEYS
       .map((a) => ({ label: ACTIONS[a], value: Number(map?.[a] ?? 0), tone: actionTone(a) }))
       .filter((i) => i.value > 0);
-    return barList(items, { empty: 'Aucune sanction sur la période.' });
+    return barList(items, { empty: 'No sanctions in this period.' });
   }
 
   function render(stats, recent, pending) {
@@ -69,17 +69,17 @@ boot(async () => {
     const month = stats.actions_month ?? {};
 
     const statRow = h('div', { class: 'grid grid-5' },
-      stat('Logs aujourd’hui', stats.today, null, 'cyan'),
-      stat('Cette semaine', stats.week, `${fmtNumber(week.arrest ?? 0)} arrestations · ${fmtNumber(week.warning ?? 0)} warnings`),
-      stat('Ce mois', stats.month, `${fmtNumber(month.termination ?? 0)} terminaisons`),
+      stat('Logs today', stats.today, null, 'cyan'),
+      stat('This week', stats.week, `${fmtNumber(week.arrest ?? 0)} arrests · ${fmtNumber(week.warning ?? 0)} warnings`),
+      stat('This month', stats.month, `${fmtNumber(month.termination ?? 0)} terminations`),
       ctx.perms.cs
-        ? stat('Approbations ⧭ à confirmer', stats.pending_approvals ?? 0, 'Arrestations ⧭ non confirmées', (stats.pending_approvals ?? 0) > 0 ? 'warn' : null)
-        : stat('Arrestations (mois)', month.arrest ?? 0, null, 'danger'),
-      stat('Rapports en attente', stats.reports_pending, 'Rapport obligatoire non marqué fait', stats.reports_pending > 0 ? 'danger' : null));
+        ? stat('⧭ approvals to confirm', stats.pending_approvals ?? 0, 'Unconfirmed ⧭ arrests', (stats.pending_approvals ?? 0) > 0 ? 'warn' : null)
+        : stat('Arrests (month)', month.arrest ?? 0, null, 'danger'),
+      stat('Pending reports', stats.reports_pending, 'Required report not marked as filed', stats.reports_pending > 0 ? 'danger' : null));
 
     const splitRow = h('div', { class: 'grid grid-2' },
-      card('Arrestations · Warnings · Terminaisons — semaine', actionSplit(week)),
-      card('Répartition — mois', actionSplit(month)));
+      card('Arrests · Warnings · Terminations — week', actionSplit(week)),
+      card('Breakdown — month', actionSplit(month)));
 
     const topOffenses = (stats.top_offenses_month ?? []).map((o) => ({
       prefix: procedureBadge(o.procedure),
@@ -98,54 +98,54 @@ boot(async () => {
         { label: 'Warn.', className: 'right cell-mono', render: (r) => String(r.warnings) },
         { label: 'Term.', className: 'right cell-mono', render: (r) => String(r.terminations) },
       ], agents)
-      : emptyState('Aucune activité ce mois-ci.');
+      : emptyState('No activity this month.');
 
     const midRow = h('div', { class: 'grid grid-2' },
-      card('Top infractions du mois', barList(topOffenses, { empty: 'Aucune infraction ce mois-ci.' })),
-      card('Activité par agent — mois', agentTable));
+      card('Top offenses this month', barList(topOffenses, { empty: 'No offenses this month.' })),
+      card('Activity by agent — month', agentTable));
 
     const recentCard = card(null,
-      h('h2', { class: 'card-title' }, 'Derniers logs', h('a', { href: 'logs.html' }, 'Tout voir →')),
+      h('h2', { class: 'card-title' }, 'Latest logs', h('a', { href: 'logs.html' }, 'View all →')),
       recent.length
         ? table([
-          { label: 'N°', className: 'cell-mono nowrap', render: (r) => r.log_number },
+          { label: 'No.', className: 'cell-mono nowrap', render: (r) => r.log_number },
           { label: 'Date', className: 'nowrap', render: (r) => h('span', { title: fmtDateTime(r.occurred_at) }, fmtRelative(r.occurred_at)) },
-          { label: 'Cible', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
-          { label: 'Procédure', render: (r) => procedureBadge(r.procedure) },
-          { label: 'Infraction', className: 'cell-mono', render: (r) => [r.offense_code, r.offense_requires_cs_approval ? approvalMark() : null] },
-          { label: 'Action', render: (r) => [actionBadge(r.action_taken, r.warning_number, r.offense_max_warnings), r.is_override ? flag('Écart', 'warn') : null] },
+          { label: 'Target', className: 'cell-strong', render: (r) => h('a', { href: link('player.html', { u: r.target_normalized }) }, r.target_username) },
+          { label: 'Procedure', render: (r) => procedureBadge(r.procedure) },
+          { label: 'Offense', className: 'cell-mono', render: (r) => [r.offense_code, r.offense_requires_cs_approval ? approvalMark() : null] },
+          { label: 'Action', render: (r) => [actionBadge(r.action_taken, r.warning_number, r.offense_max_warnings), r.is_override ? flag('Override', 'warn') : null] },
           { label: 'Agent', render: (r) => r.agent_username ?? '—' },
         ], recent, {
           onRowClick: (r) => { location.href = link('log.html', { id: r.id }); },
           rowClass: (r) => (r.status === 'voided' ? 'row-voided' : ''),
         })
-        : emptyState('Aucun log pour le moment.', ctx.perms.write ? h('a', { class: 'btn btn-primary', href: 'log-new.html' }, 'Créer le premier log') : null));
+        : emptyState('No logs yet.', ctx.perms.write ? h('a', { class: 'btn btn-primary', href: 'log-new.html' }, 'Create the first log') : null));
 
     const blocks = [statRow];
 
     if (pending) {
-      const pendingCard = card(`Logs ⧭ en attente de confirmation d’approbation (${pending.length})`,
+      const pendingCard = card(`⧭ logs awaiting approval confirmation (${pending.length})`,
         pending.length
           ? table([
-            { label: 'N°', className: 'cell-mono nowrap', render: (r) => h('a', { href: link('log.html', { id: r.id }) }, r.log_number) },
+            { label: 'No.', className: 'cell-mono nowrap', render: (r) => h('a', { href: link('log.html', { id: r.id }) }, r.log_number) },
             { label: 'Date', className: 'nowrap', render: (r) => fmtDateTime(r.occurred_at) },
-            { label: 'Cible', className: 'cell-strong', render: (r) => r.target_username },
-            { label: 'Infraction', render: (r) => [procedureBadge(r.procedure), ' ', h('span', { class: 'cell-mono' }, r.offense_code), approvalMark()] },
+            { label: 'Target', className: 'cell-strong', render: (r) => r.target_username },
+            { label: 'Offense', render: (r) => [procedureBadge(r.procedure), ' ', h('span', { class: 'cell-mono' }, r.offense_code), approvalMark()] },
             { label: 'Agent', render: (r) => r.agent_username ?? '—' },
-            { label: 'Approbateur déclaré', render: (r) => r.approver_username ?? '—' },
+            { label: 'Declared approver', render: (r) => r.approver_username ?? '—' },
             {
               label: '', className: 'right', render: (r) => {
-                const b = button('Confirmer', null, 'primary btn-sm');
+                const b = button('Confirm', null, 'primary btn-sm');
                 b.addEventListener('click', () => withBusy(b, async () => {
                   unwrap(await supabase.rpc('confirm_approval', { p_log_id: r.id }));
-                  toast(`Approbation du ${r.log_number} confirmée.`, 'success');
+                  toast(`Approval of ${r.log_number} confirmed.`, 'success');
                   await load();
                 }));
                 return b;
               },
             },
           ], pending)
-          : emptyState('Aucune approbation en attente.'));
+          : emptyState('No pending approvals.'));
       blocks.push(pendingCard);
     }
 

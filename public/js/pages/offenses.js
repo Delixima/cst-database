@@ -24,7 +24,7 @@ boot(async () => {
   let showInactive = true;
 
   async function load() {
-    replace(main, loadingState('Chargement du référentiel…'));
+    replace(main, loadingState('Loading the catalog…'));
     try {
       const [offenses, usage] = await Promise.all([
         supabase.from('offenses').select('*').order('procedure').order('code_number').then(unwrap),
@@ -37,60 +37,60 @@ boot(async () => {
   }
 
   function render(offenses, used) {
-    const toggle = checkbox('Afficher les infractions désactivées', showInactive);
+    const toggle = checkbox('Show inactive offenses', showInactive);
     toggle.input.addEventListener('change', () => { showInactive = toggle.input.checked; render(offenses, used); });
 
     const sections = PROCEDURE_KEYS.map((p) => {
       const list = offenses.filter((o) => o.procedure === p && (showInactive || o.active));
-      const add = button(`+ Ajouter (${PROCEDURES[p].label})`, () => edit(null, p, offenses), 'ghost btn-sm');
+      const add = button(`+ Add (${PROCEDURES[p].label})`, () => edit(null, p, offenses), 'ghost btn-sm');
       return card(null,
         h('h2', { class: 'card-title' }, h('span', null, procedureBadge(p), ' ', PROCEDURES[p].desc), add),
         list.length
           ? table([
             { label: 'Code', className: 'cell-mono nowrap', render: (o) => [o.code, o.requires_cs_approval ? approvalMark() : null] },
-            { label: 'Libellé', render: (o) => o.name },
-            { label: 'Cible', className: 'nowrap', render: (o) => TARGETS[o.target] },
+            { label: 'Name', render: (o) => o.name },
+            { label: 'Target', className: 'nowrap', render: (o) => TARGETS[o.target] },
             { label: 'Jail', className: 'nowrap', render: (o) => fmtJail(o.jail_seconds) },
-            { label: 'Warnings', className: 'nowrap', render: (o) => (o.max_warnings === null ? 'Non applicable' : o.max_warnings === 0 ? 'Immédiat' : `${o.max_warnings} max`) },
-            { label: 'Action par défaut', render: (o) => actionBadge(o.default_action) },
-            { label: 'Options', render: (o) => [o.report_required ? flag('Rapport', 'danger') : null, o.requires_cs_approval ? flag(`${APPROVAL_MARK} CS`, 'warn') : null] },
-            { label: 'Statut', render: (o) => (o.active ? flag('Active', 'info') : flag('Désactivée', 'muted')) },
+            { label: 'Warnings', className: 'nowrap', render: (o) => (o.max_warnings === null ? 'Not applicable' : o.max_warnings === 0 ? 'Immediate' : `${o.max_warnings} max`) },
+            { label: 'Default action', render: (o) => actionBadge(o.default_action) },
+            { label: 'Options', render: (o) => [o.report_required ? flag('Report', 'danger') : null, o.requires_cs_approval ? flag(`${APPROVAL_MARK} CS`, 'warn') : null] },
+            { label: 'Status', render: (o) => (o.active ? flag('Active', 'info') : flag('Inactive', 'muted')) },
             {
               label: '', className: 'right nowrap', render: (o) => {
-                const toggleBtn = button(o.active ? 'Désactiver' : 'Activer', null, 'ghost btn-sm');
+                const toggleBtn = button(o.active ? 'Deactivate' : 'Activate', null, 'ghost btn-sm');
                 toggleBtn.addEventListener('click', () => withBusy(toggleBtn, async () => {
                   unwrap(await supabase.from('offenses').update({ active: !o.active }).eq('id', o.id).select('id'));
-                  toast(`${o.code} ${o.active ? 'désactivée' : 'activée'}.`, 'success');
+                  toast(`${o.code} ${o.active ? 'deactivated' : 'activated'}.`, 'success');
                   await load();
                 }));
-                const del = used.has(o.id) ? null : button('Supprimer', () => remove(o), 'danger btn-sm', { title: 'Possible uniquement si aucun log ne l’utilise' });
-                return [button('Modifier', () => edit(o, o.procedure, offenses), 'ghost btn-sm'), ' ', toggleBtn, ' ', del];
+                const del = used.has(o.id) ? null : button('Delete', () => remove(o), 'danger btn-sm', { title: 'Only possible if no log uses it' });
+                return [button('Edit', () => edit(o, o.procedure, offenses), 'ghost btn-sm'), ' ', toggleBtn, ' ', del];
               },
             },
           ], list, { rowClass: (o) => (o.active ? '' : 'row-voided') })
           : emptyState(p === 'lima' || p === 'hotel'
-            ? `Aucune infraction ${PROCEDURES[p].label} définie pour l’instant (TBD dans le guide).`
-            : 'Aucune infraction.'));
+            ? `No ${PROCEDURES[p].label} offense defined yet (TBD in the guide).`
+            : 'No offenses.'));
     });
 
     replace(main,
-      pageHeader('Référentiel des infractions', 'Liste déroulante et moteur de calcul des logs. Désactivez plutôt que supprimer : les anciens logs restent liés.',
-        button('+ Nouvelle infraction', () => edit(null, 'alpha', offenses), 'primary')),
+      pageHeader('Offense catalog', 'Drop-down list and calculation engine for logs. Deactivate rather than delete: older logs stay linked.',
+        button('+ New offense', () => edit(null, 'alpha', offenses), 'primary')),
       h('div', { class: 'row', style: { marginBottom: '14px' } }, toggle),
       h('div', { class: 'stack' }, sections));
   }
 
   async function remove(o) {
     const r = await confirmDialog({
-      title: `Supprimer ${o.code}`,
-      message: 'Suppression définitive. Impossible si un log utilise cette infraction (désactivez-la dans ce cas).',
-      confirmLabel: 'Supprimer', danger: true, typeToConfirm: o.code,
+      title: `Delete ${o.code}`,
+      message: 'Permanent deletion. Not possible if a log uses this offense (deactivate it instead).',
+      confirmLabel: 'Delete', danger: true, typeToConfirm: o.code,
     });
     if (!r) return;
     await withBusy(null, async () => {
       const rows = unwrap(await supabase.from('offenses').delete().eq('id', o.id).select('id'));
-      if (!rows.length) throw new Error('Suppression refusée.');
-      toast(`${o.code} supprimée.`, 'success');
+      if (!rows.length) throw new Error('Delete refused.');
+      toast(`${o.code} deleted.`, 'success');
       await load();
     });
   }
@@ -109,18 +109,18 @@ boot(async () => {
     const target = select(TARGETS, { value: o?.target ?? DEFAULT_TARGET_BY_PROCEDURE[procedure] });
     const defaultAction = select(ACTIONS, { value: o?.default_action ?? DEFAULT_ACTION_BY_PROCEDURE[procedure] });
     const jail = input({ type: 'number', min: 1, max: 86400, step: 1, value: o?.jail_seconds ?? '' });
-    const warningsMode = select({ immediate: 'Immédiat (0)', count: 'Nombre de Warnings', none: 'Non applicable' }, {
+    const warningsMode = select({ immediate: 'Immediate (0)', count: 'Number of warnings', none: 'Not applicable' }, {
       value: o ? (o.max_warnings === null ? 'none' : o.max_warnings === 0 ? 'immediate' : 'count') : 'immediate',
     });
     const maxWarnings = input({ type: 'number', min: 1, max: 20, step: 1, value: o?.max_warnings > 0 ? o.max_warnings : 3 });
-    const approval = checkbox(`Approbation d’un Company Sergeant ou plus requise ${APPROVAL_MARK}`, o?.requires_cs_approval ?? false);
-    const reportReq = checkbox('Rapport obligatoire', o?.report_required ?? false);
-    const active = checkbox('Active (proposée dans le formulaire)', o?.active ?? true);
+    const approval = checkbox(`Approval from a Company Sergeant or above required ${APPROVAL_MARK}`, o?.requires_cs_approval ?? false);
+    const reportReq = checkbox('Report required', o?.report_required ?? false);
+    const active = checkbox('Active (offered in the log form)', o?.active ?? true);
 
-    const fCode = field('Code', code, 'Lettre de la procédure + numéro, ex. L1.0, H2.0', { required: true });
-    const fName = field('Libellé (tel que dans le guide)', name, null, { required: true });
-    const fJail = field('Jail (secondes)', jail, 'Vide si non applicable');
-    const fMax = field('Warnings max', maxWarnings);
+    const fCode = field('Code', code, 'Procedure letter + number, e.g. L1.0, H2.0', { required: true });
+    const fName = field('Name (as in the guide)', name, null, { required: true });
+    const fJail = field('Jail (seconds)', jail, 'Empty if not applicable');
+    const fMax = field('Max warnings', maxWarnings);
     const syncMax = () => { fMax.hidden = warningsMode.value !== 'count'; };
     warningsMode.addEventListener('change', syncMax);
     syncMax();
@@ -133,36 +133,36 @@ boot(async () => {
     });
 
     const body = h('div', { class: 'form-grid' },
-      h('div', { class: 'full' }, field('Procédure', procSel, null, { required: true })),
-      fCode, field('Cible', target, null, { required: true }),
+      h('div', { class: 'full' }, field('Procedure', procSel, null, { required: true })),
+      fCode, field('Target', target, null, { required: true }),
       h('div', { class: 'full' }, fName),
-      field('Action par défaut', defaultAction, null, { required: true }), fJail,
-      field('Warnings avant arrestation', warningsMode, '0 = arrestation immédiate. Le max atteint n’autorise pas l’arrestation : seul le dépassement l’autorise.'), fMax,
+      field('Default action', defaultAction, null, { required: true }), fJail,
+      field('Warnings before arrest', warningsMode, '0 = immediate arrest. Reaching the max does not authorize the arrest: only exceeding it does.'), fMax,
       h('div', { class: 'full stack', style: { gap: '8px' } }, approval, reportReq, active),
-      o ? h('p', { class: 'full small muted' }, 'Modifier une infraction n’altère pas les logs déjà enregistrés (leurs Warnings et recommandations sont conservés).') : null);
+      o ? h('p', { class: 'full small muted' }, 'Editing an offense does not alter logs already recorded (their warnings and recommendations are kept).') : null);
 
     const saved = await formDialog({
-      title: isNew ? 'Nouvelle infraction' : `Modifier ${o.code}`,
-      body, wide: true, submitLabel: isNew ? 'Créer' : 'Enregistrer',
+      title: isNew ? 'New offense' : `Edit ${o.code}`,
+      body, wide: true, submitLabel: isNew ? 'Create' : 'Save',
       onSubmit: async () => {
         [fCode, fName, fJail, fMax].forEach((f) => f.setError(''));
         const c = code.value.trim().toUpperCase();
         const p = procSel.value;
         let bad = false;
-        if (!/^[AFTDLH][0-9]{1,3}\.[0-9]{1,2}$/.test(c)) { fCode.setError('Format attendu : lettre + numéro, ex. A15.0'); bad = true; }
-        else if (c[0] !== PROCEDURE_PREFIX[p]) { fCode.setError(`Pour ${PROCEDURES[p].label}, le code doit commencer par « ${PROCEDURE_PREFIX[p]} ».`); bad = true; }
-        if (name.value.trim().length < 3 || name.value.trim().length > 200) { fName.setError('3 à 200 caractères.'); bad = true; }
+        if (!/^[AFTDLH][0-9]{1,3}\.[0-9]{1,2}$/.test(c)) { fCode.setError('Expected format: letter + number, e.g. A15.0'); bad = true; }
+        else if (c[0] !== PROCEDURE_PREFIX[p]) { fCode.setError(`For ${PROCEDURES[p].label}, the code must start with "${PROCEDURE_PREFIX[p]}".`); bad = true; }
+        if (name.value.trim().length < 3 || name.value.trim().length > 200) { fName.setError('3 to 200 characters.'); bad = true; }
         let jailVal = null;
         if (jail.value !== '') {
           jailVal = Number(jail.value);
-          if (!Number.isInteger(jailVal) || jailVal < 1 || jailVal > 86400) { fJail.setError('Entier entre 1 et 86400.'); bad = true; }
+          if (!Number.isInteger(jailVal) || jailVal < 1 || jailVal > 86400) { fJail.setError('Whole number between 1 and 86400.'); bad = true; }
         }
         let maxVal = warningsMode.value === 'none' ? null : 0;
         if (warningsMode.value === 'count') {
           maxVal = Number(maxWarnings.value);
-          if (!Number.isInteger(maxVal) || maxVal < 1 || maxVal > 20) { fMax.setError('Entier entre 1 et 20.'); bad = true; }
+          if (!Number.isInteger(maxVal) || maxVal < 1 || maxVal > 20) { fMax.setError('Whole number between 1 and 20.'); bad = true; }
         }
-        if (bad) throw new Error('Corrigez les champs signalés.');
+        if (bad) throw new Error('Fix the highlighted fields.');
         const payload = {
           code: c, procedure: p, name: name.value.trim(), target: target.value,
           default_action: defaultAction.value, jail_seconds: jailVal, max_warnings: maxVal,
@@ -171,13 +171,13 @@ boot(async () => {
         if (isNew) unwrap(await supabase.from('offenses').insert(payload).select('id').single());
         else {
           const rows = unwrap(await supabase.from('offenses').update(payload).eq('id', o.id).select('id'));
-          if (!rows.length) throw new Error('Modification refusée.');
+          if (!rows.length) throw new Error('Update refused.');
         }
         return true;
       },
     });
     if (saved) {
-      toast(isNew ? 'Infraction créée.' : 'Infraction mise à jour.', 'success');
+      toast(isNew ? 'Offense created.' : 'Offense updated.', 'success');
       await load();
     }
   }
