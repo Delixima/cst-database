@@ -118,8 +118,40 @@ select.input { cursor: pointer; }
 select.input optgroup { font-family: var(--font-mono); color: var(--steel); }
 .input-sm { min-height: 30px; padding: 4px 8px; font-size: 0.85rem; }
 
-.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
-.check input { width: 16px; height: 16px; accent-color: var(--cyan); }
+.check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; line-height: 1.35; }
+.check:has(input:disabled) { cursor: not-allowed; opacity: 0.55; }
+
+/* Themed checkbox: steel square, cyan when checked, crisp dark tick. */
+.check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-2) center / 12px 12px no-repeat;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  cursor: inherit;
+  transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.check:hover input[type="checkbox"]:not(:disabled) { border-color: var(--cyan-dim); }
+.check input[type="checkbox"]:checked {
+  border-color: var(--cyan);
+  background-color: var(--cyan);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.3 4.9 9 9.8 3.2' fill='none' stroke='%23131518' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  box-shadow: 0 0 0 3px var(--cyan-soft);
+}
+.check input[type="checkbox"]:focus-visible { outline: none; box-shadow: var(--focus); }
+.check input[type="checkbox"]:checked + span { color: var(--text); }
+.check span { color: var(--text-dim); }
+
+/* Printed log sheet: keep the state readable without colours. */
+@media print {
+  .check input[type="checkbox"] { border-color: #000; background-color: #fff; box-shadow: none; }
+  .check input[type="checkbox"]:checked { background-color: #000; }
+}
 
 .radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .radio-pill { position: relative; }
