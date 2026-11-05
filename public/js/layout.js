@@ -16,7 +16,7 @@ const NAV = [
 
 export function brand() {
   return h('a', { class: 'brand', href: 'dashboard.html' },
-    h('img', { src: 'assets/logo.svg', alt: '', width: 36, height: 36 }),
+    h('img', { src: 'assets/logo.webp', alt: '', width: 36, height: 36 }),
     h('span', { class: 'brand-text' }, h('strong', null, 'CST'), h('small', null, 'Sanction registry')));
 }
 

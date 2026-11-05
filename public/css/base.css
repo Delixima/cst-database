@@ -103,7 +103,7 @@ code, .mono { font-family: var(--font-mono); }
 }
 
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none !important; flex-shrink: 0; }
-.brand img { display: block; }
+.brand img { display: block; border-radius: 50%; border: 1px solid var(--red); box-shadow: 0 0 0 2px rgba(200, 16, 46, 0.18); object-fit: cover; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-text strong { font-family: var(--font-mono); font-size: 1.15rem; letter-spacing: 0.18em; }
 .brand-text small { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }

@@ -50,7 +50,7 @@ Le site ne contient **ni règlement ni procédures**. La seule référence est l
     ├── members.html           Gestion des membres, grades, équipes (gérant)
     ├── audit.html             Journal d'audit (gérant)
     ├── config.js              SUPABASE_URL + SUPABASE_ANON_KEY (à remplir)
-    ├── assets/                logo.svg, favicon.svg
+    ├── assets/                logo.webp, favicon-32.png, favicon-192.png, apple-touch-icon.png
     ├── css/                   base.css, components.css, print.css
     └── js/
         ├── supabase.js        Client Supabase
