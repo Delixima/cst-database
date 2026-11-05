@@ -137,8 +137,7 @@ function signupForm() {
     submit.disabled = false;
     if (error) return showError(err, error);
     if (!data.session) {
-      authView('login', h('div', { class: 'notice notice-ok' },
-        'Account created. Confirm your address by clicking the link you received by email, then sign in.'));
+      checkInboxView(email.value.trim());
       return;
     }
     await route();
@@ -152,6 +151,65 @@ async function discordLogin() {
     options: { redirectTo: new URL('index.html', location.href).href },
   });
   if (error) toast(errorMessage(error), 'error');
+}
+
+/** Shown right after sign-up when email confirmation is required. */
+function checkInboxView(address) {
+  const RESEND_COOLDOWN = 60;
+  const status = h('div', { role: 'status', 'aria-live': 'polite' });
+  const resend = h('button', { type: 'button', class: 'btn btn-ghost btn-block' }, 'Resend the confirmation email');
+  let timer = null;
+
+  const startCooldown = () => {
+    let left = RESEND_COOLDOWN;
+    resend.disabled = true;
+    resend.textContent = `Resend the confirmation email (${left} s)`;
+    clearInterval(timer);
+    timer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(timer);
+        resend.disabled = false;
+        resend.textContent = 'Resend the confirmation email';
+      } else {
+        resend.textContent = `Resend the confirmation email (${left} s)`;
+      }
+    }, 1000);
+  };
+
+  resend.addEventListener('click', async () => {
+    resend.disabled = true;
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: address,
+      options: { emailRedirectTo: new URL('index.html', location.href).href },
+    });
+    if (error) {
+      replace(status, h('div', { class: 'notice notice-danger' }, errorMessage(error)));
+      resend.disabled = false;
+      return;
+    }
+    replace(status, h('div', { class: 'notice notice-ok' }, `A new confirmation email has been sent to ${address}.`));
+    startCooldown();
+  });
+
+  shell(
+    h('h1', null, 'Check your email'),
+    h('div', { class: 'notice notice-warn inbox-notice' },
+      h('strong', null, 'Your account is not active yet.'),
+      h('span', null, 'We sent a confirmation link to:'),
+      h('span', { class: 'inbox-address' }, address)),
+    h('ol', { class: 'inbox-steps' },
+      h('li', null, 'Open your mailbox and find the email from ', h('strong', null, 'Supabase Auth'), ' (subject: “Confirm Your Signup”).'),
+      h('li', null, 'Click ', h('strong', null, 'Confirm your mail'), ' in that email.'),
+      h('li', null, 'Come back here and sign in with your email or Roblox username.'),
+      h('li', null, 'The CST manager then approves your account: until then you will see an “Account pending” screen.')),
+    h('p', { class: 'field-hint' }, 'Nothing after a few minutes? Check your spam or junk folder, and make sure the address above is correct.'),
+    status,
+    resend,
+    h('button', { type: 'button', class: 'btn btn-primary btn-block', onClick: () => { clearInterval(timer); authView('login'); } }, 'I confirmed my email — sign in'),
+  );
+  startCooldown();
 }
 
 function forgotView(prefill = '') {

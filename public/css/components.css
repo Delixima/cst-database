@@ -342,3 +342,10 @@ details.audit-entry .audit-body { padding: 10px 12px; overflow-x: auto; }
 .proc-count strong { font-family: var(--font-mono); }
 
 .print-only { display: none; }
+
+/* ---------- sign-up: check your inbox ---------- */
+.inbox-notice { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.inbox-notice strong { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--amber); }
+.inbox-address { font-family: var(--font-mono); font-size: 1rem; color: var(--text); word-break: break-all; }
+.inbox-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-dim); }
+.inbox-steps strong { color: var(--text); }
