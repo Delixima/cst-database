@@ -1,0 +1,14 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local tooling
+node_modules/
+.netlify/
+.env
+.env.*
+
+# Never commit a Supabase service_role key or local overrides
+*.local.js
