@@ -119,6 +119,7 @@ Une base déjà installée se met à jour avec les fichiers de `supabase/migrati
 | `20261109_sierra_enum.sql` | Procédure Sierra (personnel Divisional) : valeur d'enum. À exécuter **seul**, en premier |
 | `20261110_sierra_offenses.sql` | Sierra : préfixe `S`, contrainte de code, `players.sierra_count` et les 12 infractions S1.0 à S12.0 |
 | `20261111_officer_manage_members.sql` | Les officiers gèrent membres, grades et escouades (jamais un compte gérant ni le rôle gérant) |
+| `20261112_officer_own_identity.sql` | Un officier peut changer son propre pseudo et son numéro de service (pas son rôle, statut ni grade) |
 
 L'interface du site est entièrement en anglais. Seule cette documentation reste en français.
 
@@ -253,7 +254,7 @@ Ensuite, tout se gère depuis **Membres** : validation des comptes, rôles, grad
 | Rôle (UI) | Valeur SQL | Droits |
 |---|---|---|
 | Gérant | `manager` | Tout : comptes, référentiel, suppression (douce et définitive), journal d'audit, remise à zéro, fusion de pseudos |
-| Officier | `officer` | Lire tout ; créer, modifier et annuler des logs ; logger au nom d'un agent ; remise à zéro ; confirmer les ⧭ ; gérer membres, grades et escouades (pas les comptes gérant, pas le rôle gérant, pas son propre rôle) |
+| Officier | `officer` | Lire tout ; créer, modifier et annuler des logs ; logger au nom d'un agent ; remise à zéro ; confirmer les ⧭ ; gérer membres, grades et escouades (pas les comptes gérant, pas le rôle gérant ; il change son propre pseudo et matricule mais pas son rôle, statut ni grade) |
 | Company Sergeant | `cs` | Comme trooper, plus : approuver et confirmer les ⧭, modifier les logs des membres qui partagent au moins une de ses escouades |
 | Trooper | `trooper` | Créer des logs ; modifier ses propres logs de moins de 24 h ; lire tout |
 | Lecture seule | `read_only` | Lire tout (sauf l'audit) |

@@ -644,16 +644,23 @@ begin
           using errcode = '42501';
       end if;
     else
-      if (new.role, new.active, new.rank_id, new.service_number)
-         is distinct from (old.role, old.active, old.rank_id, old.service_number) then
-        raise exception 'Only the manager can change the role, status, rank or service number.'
+      -- Own profile: nobody but the manager changes their own role, status or rank.
+      if (new.role, new.active, new.rank_id)
+         is distinct from (old.role, old.active, old.rank_id) then
+        raise exception 'Only the manager can change the role, status or rank.'
           using errcode = '42501';
       end if;
-      -- Members set their own username only while pending (sign-up fix-up).
-      -- Once approved, the identity shown on every log is managed by the manager.
-      if new.roblox_username is distinct from old.roblox_username and old.role <> 'pending' then
-        raise exception 'Your Roblox username can only be changed by the manager once your account is approved.'
-          using errcode = '42501';
+      -- Service number and username: officers may change their own; other members
+      -- cannot (username only while pending, as a sign-up fix-up).
+      if not private.is_officer_plus() then
+        if new.service_number is distinct from old.service_number then
+          raise exception 'Only the manager can change the service number.'
+            using errcode = '42501';
+        end if;
+        if new.roblox_username is distinct from old.roblox_username and old.role <> 'pending' then
+          raise exception 'Your Roblox username can only be changed by the manager once your account is approved.'
+            using errcode = '42501';
+        end if;
       end if;
     end if;
   end if;

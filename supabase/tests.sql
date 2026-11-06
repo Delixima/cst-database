@@ -461,6 +461,9 @@ begin
   perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'manager', 'officer: cannot merge');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'officer: cannot read audit_log');
   perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('officer')$q$, 'manager', 'officer: cannot change its own role');
+  perform tests.throws($q$update public.profiles set active = false where id = tests.id('officer')$q$, 'manager', 'officer: cannot change its own status');
+  perform tests.ok(tests.affected($q$update public.profiles set service_number = 'CST-0777' where id = tests.id('officer')$q$) = 1, 'officer: changes its own service number');
+  perform tests.ok(tests.affected($q$update public.profiles set roblox_username = 'Test_Officer_2' where id = tests.id('officer')$q$) = 1, 'officer: changes its own username');
   perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('trooper_a')$q$, 'manager', 'officer: cannot grant the manager role');
   perform tests.throws($q$update public.profiles set service_number = 'X-1' where id = tests.id('manager')$q$, 'manager', 'officer: cannot edit a manager account');
   perform tests.throws($q$select public.update_member(tests.id('manager'), 'Test_Manager', null, 'officer', null, true, '{}')$q$, 'manager', 'officer: cannot demote a manager');
