@@ -12,10 +12,10 @@ import { PROCEDURES, PROCEDURE_KEYS, PROCEDURE_PREFIX, ACTIONS, TARGETS, APPROVA
 import { fmtJail } from '../format.js';
 
 const DEFAULT_ACTION_BY_PROCEDURE = {
-  alpha: 'arrest', foxtrot: 'arrest', tango: 'termination', delta: 'relocation', lima: 'search', hotel: 'detention',
+  alpha: 'arrest', foxtrot: 'arrest', tango: 'termination', delta: 'relocation', lima: 'search', hotel: 'detention', sierra: 'arrest',
 };
 const DEFAULT_TARGET_BY_PROCEDURE = {
-  alpha: 'personnel', foxtrot: 'immigrant', tango: 'both', delta: 'both', lima: 'immigrant', hotel: 'both',
+  alpha: 'personnel', foxtrot: 'immigrant', tango: 'both', delta: 'both', lima: 'immigrant', hotel: 'both', sierra: 'personnel',
 };
 
 boot(async () => {
@@ -149,7 +149,7 @@ boot(async () => {
         const c = code.value.trim().toUpperCase();
         const p = procSel.value;
         let bad = false;
-        if (!/^[AFTDLH][0-9]{1,3}\.[0-9]{1,2}$/.test(c)) { fCode.setError('Expected format: letter + number, e.g. A15.0'); bad = true; }
+        if (!/^[AFTDLHS][0-9]{1,3}\.[0-9]{1,2}$/.test(c)) { fCode.setError('Expected format: letter + number, e.g. A15.0'); bad = true; }
         else if (c[0] !== PROCEDURE_PREFIX[p]) { fCode.setError(`For ${PROCEDURES[p].label}, the code must start with "${PROCEDURE_PREFIX[p]}".`); bad = true; }
         if (name.value.trim().length < 3 || name.value.trim().length > 200) { fName.setError('3 to 200 characters.'); bad = true; }
         let jailVal = null;

@@ -7,9 +7,10 @@ export const PROCEDURES = {
   delta:   { label: 'Delta',   desc: 'Cuff and relocate a personnel member or an immigrant' },
   lima:    { label: 'Lima',    desc: 'Search an immigrant' },
   hotel:   { label: 'Hotel',   desc: 'Detain and hold an offender' },
+  sierra:  { label: 'Sierra',  desc: 'Cuff, jail or terminate Divisional personnel' },
 };
 export const PROCEDURE_KEYS = Object.keys(PROCEDURES);
-export const PROCEDURE_PREFIX = { alpha: 'A', foxtrot: 'F', tango: 'T', delta: 'D', lima: 'L', hotel: 'H' };
+export const PROCEDURE_PREFIX = { alpha: 'A', foxtrot: 'F', tango: 'T', delta: 'D', lima: 'L', hotel: 'H', sierra: 'S' };
 
 export const ACTIONS = {
   warning:     'Warning',

@@ -88,7 +88,7 @@ Le script crée :
 - les vues `players`, `warning_counters` et `sanction_logs_expanded` ;
 - les fonctions appelées par le front (`get_recommendation`, `confirm_approval`, `merge_players`, `unmerge_player`, `get_log_history`, `dashboard_stats`) ;
 - les policies RLS de chaque table ;
-- le seed : 4 grades et les 26 infractions du Cuff Guide (Alpha, Foxtrot, Tango, Delta). Lima et Hotel sont vides, à compléter depuis l'interface.
+- le seed : 4 grades et les 38 infractions du Cuff Guide (Alpha, Foxtrot, Tango, Delta, Sierra). Lima et Hotel sont vides, à compléter depuis l'interface.
 
 ---
 
@@ -116,6 +116,8 @@ Une base déjà installée se met à jour avec les fichiers de `supabase/migrati
 | `20261106_multi_squads.sql` | Plusieurs escouades par membre + fonctions (Internal Affairs, Instructor…). Les affectations existantes sont conservées |
 | `20261107_username_login.sql` | Connexion avec l'email **ou** le pseudo Roblox (vérification du mot de passe côté base, 5 échecs par pseudo / 20 par IP en 15 min → blocage) |
 | `20261108_review_fixes.sql` | Corrections de la revue : approbation ⧭ réservée aux arrestations, pseudo verrouillé après validation, IP fiable pour la limite de connexion, enregistrement atomique des membres |
+| `20261109_sierra_enum.sql` | Procédure Sierra (personnel Divisional) : valeur d'enum. À exécuter **seul**, en premier |
+| `20261110_sierra_offenses.sql` | Sierra : préfixe `S`, contrainte de code, `players.sierra_count` et les 12 infractions S1.0 à S12.0 |
 
 L'interface du site est entièrement en anglais. Seule cette documentation reste en français.
 
