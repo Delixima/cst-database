@@ -634,18 +634,34 @@ begin
 
   if not v_system and not private.is_manager() then
     if auth.uid() is distinct from old.id then
-      raise exception 'You can only edit your own profile.' using errcode = '42501';
-    end if;
-    if (new.role, new.active, new.rank_id, new.service_number)
-       is distinct from (old.role, old.active, old.rank_id, old.service_number) then
-      raise exception 'Only the manager can change the role, status, rank or service number.'
-        using errcode = '42501';
-    end if;
-    -- Members set their own username only while pending (sign-up fix-up).
-    -- Once approved, the identity shown on every log is managed by the manager.
-    if new.roblox_username is distinct from old.roblox_username and old.role <> 'pending' then
-      raise exception 'Your Roblox username can only be changed by the manager once your account is approved.'
-        using errcode = '42501';
+      -- Someone else's profile: officers only, and never a manager account
+      -- nor the manager role (no privilege escalation).
+      if not private.is_officer_plus() then
+        raise exception 'You can only edit your own profile.' using errcode = '42501';
+      end if;
+      if old.role = 'manager' or new.role = 'manager' then
+        raise exception 'Only a manager can edit a manager account or grant the manager role.'
+          using errcode = '42501';
+      end if;
+    else
+      -- Own profile: nobody but the manager changes their own role, status or rank.
+      if (new.role, new.active, new.rank_id)
+         is distinct from (old.role, old.active, old.rank_id) then
+        raise exception 'Only the manager can change the role, status or rank.'
+          using errcode = '42501';
+      end if;
+      -- Service number and username: officers may change their own; other members
+      -- cannot (username only while pending, as a sign-up fix-up).
+      if not private.is_officer_plus() then
+        if new.service_number is distinct from old.service_number then
+          raise exception 'Only the manager can change the service number.'
+            using errcode = '42501';
+        end if;
+        if new.roblox_username is distinct from old.roblox_username and old.role <> 'pending' then
+          raise exception 'Your Roblox username can only be changed by the manager once your account is approved.'
+            using errcode = '42501';
+        end if;
+      end if;
     end if;
   end if;
 
@@ -1317,8 +1333,8 @@ as $$
 declare
   v_units uuid[] := coalesce(p_unit_ids, '{}'::uuid[]);
 begin
-  if not private.is_manager() then
-    raise exception 'Only the manager can edit members.' using errcode = '42501';
+  if not private.is_officer_plus() then
+    raise exception 'Only an officer or the manager can edit members.' using errcode = '42501';
   end if;
 
   update public.profiles
@@ -1559,36 +1575,36 @@ alter table private.login_attempts enable row level security;
 create policy ranks_select on public.ranks for select to authenticated
   using ((select private.is_reader()));
 create policy ranks_insert on public.ranks for insert to authenticated
-  with check ((select private.is_manager()));
+  with check ((select private.is_officer_plus()));
 create policy ranks_update on public.ranks for update to authenticated
-  using ((select private.is_manager())) with check ((select private.is_manager()));
+  using ((select private.is_officer_plus())) with check ((select private.is_officer_plus()));
 create policy ranks_delete on public.ranks for delete to authenticated
-  using ((select private.is_manager()));
+  using ((select private.is_officer_plus()));
 
 -- squads
 create policy squads_select on public.squads for select to authenticated
   using ((select private.is_reader()));
 create policy squads_insert on public.squads for insert to authenticated
-  with check ((select private.is_manager()));
+  with check ((select private.is_officer_plus()));
 create policy squads_update on public.squads for update to authenticated
-  using ((select private.is_manager())) with check ((select private.is_manager()));
+  using ((select private.is_officer_plus())) with check ((select private.is_officer_plus()));
 create policy squads_delete on public.squads for delete to authenticated
-  using ((select private.is_manager()));
+  using ((select private.is_officer_plus()));
 
 -- profile_squads (memberships, managed by the manager)
 create policy profile_squads_select on public.profile_squads for select to authenticated
   using ((select private.is_reader()) or profile_id = (select auth.uid()));
 create policy profile_squads_insert on public.profile_squads for insert to authenticated
-  with check ((select private.is_manager()));
+  with check ((select private.is_officer_plus()));
 create policy profile_squads_delete on public.profile_squads for delete to authenticated
-  using ((select private.is_manager()));
+  using ((select private.is_officer_plus()));
 
 -- profiles (insert by trigger only; deletion through Supabase Auth only)
 create policy profiles_select on public.profiles for select to authenticated
   using (id = (select auth.uid()) or (select private.is_reader()));
 create policy profiles_update on public.profiles for update to authenticated
-  using (id = (select auth.uid()) or (select private.is_manager()))
-  with check (id = (select auth.uid()) or (select private.is_manager()));
+  using (id = (select auth.uid()) or (select private.is_officer_plus()))
+  with check (id = (select auth.uid()) or (select private.is_officer_plus()));
 
 -- offenses
 create policy offenses_select on public.offenses for select to authenticated

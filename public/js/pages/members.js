@@ -1,4 +1,4 @@
-// Members (manager): approve pending accounts, role, rank, service number,
+// Members (officer and manager): approve pending accounts, role, rank, service number,
 // squad / function memberships (several per member), deactivation;
 // manage ranks and units (squads & functions).
 
@@ -16,8 +16,11 @@ const ASSIGNABLE_ROLES = ['trooper', 'cs', 'officer', 'manager', 'read_only', 'p
 const TABS = ['pending', 'members', 'ranks', 'units'];
 
 boot(async () => {
-  const ctx = await requireAuth({ minLevel: 5 });
+  const ctx = await requireAuth({ minLevel: 4 });
   const main = renderShell(ctx, 'members');
+  // Officers manage members but never manager accounts nor the manager role (enforced by the database too).
+  const assignableRoles = ASSIGNABLE_ROLES.filter((r) => ctx.perms.manager || r !== 'manager');
+  const canEditMember = (p) => ctx.perms.manager || p.role !== 'manager' || p.id === ctx.user.id;
   let tab = TABS.includes(qs('tab')) ? qs('tab') : null;
 
   let data = { profiles: [], ranks: [], squads: [], memberships: [] };
@@ -92,7 +95,7 @@ boot(async () => {
         {
           label: '', className: 'right nowrap', render: (p) => [
             button('Approve as Trooper', () => quickValidate(p, 'trooper'), 'primary btn-sm'), ' ',
-            button('Approve…', () => editMember(p), 'ghost btn-sm'), ' ',
+            canEditMember(p) ? button('Approve…', () => editMember(p), 'ghost btn-sm') : null, ' ',
             button('Reject', () => refuse(p), 'danger btn-sm'),
           ],
         },
@@ -148,7 +151,7 @@ boot(async () => {
           { label: 'Role', render: (p) => roleBadge(p.role) },
           { label: 'Status', render: (p) => (p.active ? flag('Active', 'info') : flag('Deactivated', 'danger')) },
           { label: 'Signed up', className: 'nowrap small', render: (p) => fmtDateTime(p.created_at) },
-          { label: '', className: 'right', render: (p) => button('Edit', () => editMember(p), 'ghost btn-sm') },
+          { label: '', className: 'right', render: (p) => (canEditMember(p) ? button('Edit', () => editMember(p), 'ghost btn-sm') : null) },
         ], list, { rowClass: (p) => (p.active ? '' : 'row-voided') })
         : emptyState('No member matches.'));
     };
@@ -182,17 +185,20 @@ boot(async () => {
     const currentUnits = unitIdsOf(p.id);
     const username = input({ value: p.roblox_username ?? '', maxlength: 20 });
     const service = input({ value: p.service_number ?? '', maxlength: 20, placeholder: 'e.g. CST-0420' });
-    const role = select(ASSIGNABLE_ROLES.map((r) => ({ value: r, label: ROLES[r] })), { value: p.role === 'pending' ? 'trooper' : p.role });
+    const role = select(assignableRoles.map((r) => ({ value: r, label: ROLES[r] })), { value: p.role === 'pending' ? 'trooper' : p.role });
     const rank = select(data.ranks.filter((r) => r.active || r.id === p.rank_id).map((r) => ({ value: r.id, label: r.name })), { value: p.rank_id ?? '', placeholder: '— None —' });
     const squadsPick = unitPicker('squad', currentUnits);
     const functionsPick = unitPicker('function', currentUnits);
     const active = checkbox('Active account', p.active);
+    // An officer editing their own profile may only change username, service number and units.
+    const lockedSelf = isSelf && !ctx.perms.manager;
+    if (lockedSelf) { role.disabled = true; rank.disabled = true; active.input.disabled = true; }
     const fUser = field('Roblox username', username);
     const fService = field('Service number', service, 'Letters, digits, hyphen — 20 characters max.');
 
     const body = h('div', { class: 'form-grid' },
       fUser, fService,
-      field('Role', role, isSelf ? 'Careful: you are changing your own role.' : 'Manager: everything. Officer: logs, voiding, resets, ⧭. CS: ⧭ and logs of members sharing one of their squads. Trooper: create, own logs < 24 h.'),
+      field('Role', role, isSelf ? (lockedSelf ? 'You cannot change your own role.' : 'Careful: you are changing your own role.') : 'Manager: everything. Officer: logs, voiding, resets, ⧭. CS: ⧭ and logs of members sharing one of their squads. Trooper: create, own logs < 24 h.'),
       field('Rank', rank),
       h('div', { class: 'field full' }, h('span', { class: 'field-label' }, 'Squads'), squadsPick.el,
         h('div', { class: 'field-hint' }, 'A member can belong to several squads. A CS can edit the logs of members sharing at least one squad with them.')),
@@ -209,7 +215,7 @@ boot(async () => {
         const s = service.value.trim();
         if (u && !USERNAME_RE.test(u)) { fUser.setError('Invalid username.'); throw new Error('Fix the highlighted fields.'); }
         if (s && !/^[A-Za-z0-9-]{1,20}$/.test(s)) { fService.setError('Invalid service number.'); throw new Error('Fix the highlighted fields.'); }
-        if (isSelf && (role.value !== 'manager' || !active.input.checked)) {
+        if (isSelf && ctx.perms.manager && (role.value !== 'manager' || !active.input.checked)) {
           const c = window.confirm('You are about to remove your own manager rights. Continue?');
           if (!c) return false;
         }
