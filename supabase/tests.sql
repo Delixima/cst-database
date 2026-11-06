@@ -222,7 +222,7 @@ do $$
 declare
   v_id uuid; r jsonb; l public.sanction_logs%rowtype; i integer;
 begin
-  perform tests.ok(tests.count_rows('select 1 from public.offenses') >= 26, 'trooper: reads the offense catalog');
+  perform tests.ok(tests.count_rows('select 1 from public.offenses') >= 38, 'trooper: reads the offense catalog');
 
   -- Warning engine on A5.0 Trespassing (max 3)
   for i in 1..3 loop
@@ -470,7 +470,7 @@ reset role;
 -- -----------------------------------------------------------------------------
 select tests.login(tests.id('manager'));
 do $$
-declare n integer; l public.sanction_logs%rowtype;
+declare n integer; l public.sanction_logs%rowtype; r jsonb;
 begin
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') > 20, 'manager: reads audit_log');
   insert into public.profile_squads (profile_id, squad_id) values (tests.id('reader'), tests.id('squad_a')), (tests.id('reader'), tests.id('function'));
@@ -512,6 +512,14 @@ begin
   perform tests.throws($q$insert into public.offenses (code, procedure, name, target, default_action) values ('A99.0', 'hotel', 'Bad prefix', 'both', 'detention')$q$,
     'offenses_code_matches_procedure', 'catalog: code prefix must match procedure');
   perform tests.throws($q$delete from public.offenses where code = 'A5.0'$q$, 'foreign key', 'catalog: used offense cannot be deleted');
+
+  -- Sierra: Divisional personnel, 1/1 warning then arrest on the next breach
+  perform tests.ok(tests.count_rows($q$select 1 from public.offenses where procedure = 'sierra'$q$) = 12, 'sierra: 12 offenses seeded');
+  insert into public.sanction_logs (offense_id, target_username, target_type, action_taken)
+  values (tests.offense('S7.0'), 'Sierra_Guy_1', 'personnel', 'warning') returning * into l;
+  perform tests.ok(l.procedure = 'sierra' and l.warning_number = 1 and l.log_number like 'LOG-%', 'sierra: S7.0 first breach is Warning 1/1');
+  r := public.get_recommendation('Sierra_Guy_1', tests.offense('S7.0'));
+  perform tests.ok(r ->> 'recommendation_code' = 'arrest_authorized', 'sierra: S7.0 second breach authorizes arrest', r::text);
 end $$;
 reset role;
 

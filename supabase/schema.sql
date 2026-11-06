@@ -48,7 +48,7 @@ create extension if not exists pgcrypto with schema extensions;
 -- manager, officer, cs = Company Sergeant, trooper, read_only, pending
 create type public.app_role as enum ('manager', 'officer', 'cs', 'trooper', 'read_only', 'pending');
 
-create type public.procedure_code as enum ('alpha', 'foxtrot', 'tango', 'delta', 'lima', 'hotel');
+create type public.procedure_code as enum ('alpha', 'foxtrot', 'tango', 'delta', 'lima', 'hotel', 'sierra');
 
 -- Who an offense applies to
 create type public.offense_target as enum ('personnel', 'immigrant', 'both');
@@ -129,6 +129,7 @@ as $$
     when 'delta'   then 'D'
     when 'lima'    then 'L'
     when 'hotel'   then 'H'
+    when 'sierra'  then 'S'
   end
 $$;
 
@@ -182,7 +183,7 @@ create table public.profile_squads (
 -- Offense catalog (reference table: drop-down + calculation engine).
 create table public.offenses (
   id                    uuid primary key default gen_random_uuid(),
-  code                  text not null check (code ~ '^[AFTDLH][0-9]{1,3}\.[0-9]{1,2}$'),
+  code                  text not null check (code ~ '^[AFTDLHS][0-9]{1,3}\.[0-9]{1,2}$'),
   code_number           numeric generated always as (substring(code from 2)::numeric) stored,
   procedure             public.procedure_code not null,
   name                  text not null check (char_length(btrim(name)) between 3 and 200),
@@ -1109,6 +1110,7 @@ select
   count(*) filter (where l.status = 'valid' and l.procedure = 'delta')          as delta_count,
   count(*) filter (where l.status = 'valid' and l.procedure = 'lima')           as lima_count,
   count(*) filter (where l.status = 'valid' and l.procedure = 'hotel')          as hotel_count,
+  count(*) filter (where l.status = 'valid' and l.procedure = 'sierra')         as sierra_count,
   coalesce(
     (select array_agg(a.alias_normalized order by a.alias_normalized)
        from public.player_aliases a
@@ -1749,7 +1751,20 @@ values
   ('T4.0',  'tango', 'Immigrant walks out of the dedicated pathway in the border',    'immigrant', null, 0, 'termination', false, false),
   ('T5.0',  'tango', 'Immigrant enters a booth',                                      'immigrant', null, 0, 'termination', false, false),
   -- Delta: cuff & relocate (cuff out) + warning, no max defined
-  ('D1.0',  'delta', 'Imperial personnel enters a restricted area',                   'personnel', null, null, 'relocation', false, false);
+  ('D1.0',  'delta', 'Imperial personnel enters a restricted area',                   'personnel', null, null, 'relocation', false, false),
+  -- Sierra: cuff, jail or terminate Divisional personnel (stricter than Alpha)
+  ('S1.0',  'sierra', 'Arrest on Sight Order',                                        'personnel', 300, 0, 'arrest', false, false),
+  ('S2.0',  'sierra', 'On duty Raiding',                                              'personnel', 300, 0, 'arrest', false, false),
+  ('S3.0',  'sierra', 'Multiple Successful Random Kills',                             'personnel', 300, 0, 'arrest', false, false),
+  ('S4.0',  'sierra', 'Massively disturbing an Official event hosting',               'personnel', 300, 0, 'arrest', false, false),
+  ('S5.0',  'sierra', 'Interfering with an arrest, cuffing or lawful action of a Shock Trooper', 'personnel', 300, 0, 'arrest', false, false),
+  ('S6.0',  'sierra', 'Abusing Divisional weapons, tools or privileges',              'personnel', 300, 0, 'arrest', false, false),
+  ('S7.0',  'sierra', 'Trespassing in an area beyond Divisional clearance',           'personnel', 120, 1, 'arrest', false, false),
+  ('S8.0',  'sierra', 'Disrupting divisional duties',                                 'personnel', 120, 1, 'arrest', false, false),
+  ('S9.0',  'sierra', 'Failing to STS during events (verbal warnings, then cuff to pads)', 'personnel', null, 2, 'arrest', false, false),
+  ('S10.0', 'sierra', 'Kill on Sight Order',                                          'personnel', null, 0, 'termination', false, false),
+  ('S11.0', 'sierra', 'Attacking or attempting to kill an Officer+ without a valid order (termination and arrest)', 'personnel', null, 0, 'termination', false, false),
+  ('S12.0', 'sierra', 'Being terminated for entering an ERG, CST or IDT VIP''s killzone 2 times', 'personnel', 120, 2, 'arrest', false, false);
   -- Lima (search) and Hotel (detention): no offenses defined yet (TBD in the guide).
   -- The manager adds them from the "Offense catalog" page.
 

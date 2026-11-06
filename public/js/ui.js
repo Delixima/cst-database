@@ -123,7 +123,7 @@ const CONSTRAINT_MESSAGES = {
   sanction_logs_override_reason_check: 'Invalid justification (3 to 500 characters).',
   sanction_logs_void_reason_check: 'Invalid void reason (3 to 500 characters).',
   offenses_code_check: 'Invalid code. Expected format: procedure letter + number, e.g. A15.0.',
-  offenses_code_matches_procedure: 'The code letter must match the procedure (A = Alpha, F = Foxtrot, T = Tango, D = Delta, L = Lima, H = Hotel).',
+  offenses_code_matches_procedure: 'The code letter must match the procedure (A = Alpha, F = Foxtrot, T = Tango, D = Delta, L = Lima, H = Hotel, S = Sierra).',
   offenses_code_key: 'This offense code already exists.',
   profiles_roblox_username_lower_key: 'This Roblox username is already used by another account.',
   profiles_service_number_key: 'This service number is already assigned.',

@@ -60,6 +60,7 @@
 .proc-delta   { color: var(--blue); background: rgba(75, 143, 224, 0.12); }
 .proc-lima    { color: var(--teal); background: rgba(63, 191, 159, 0.12); }
 .proc-hotel   { color: var(--gold); background: rgba(205, 179, 63, 0.12); }
+.proc-sierra  { color: #e05fa0; background: rgba(224, 95, 160, 0.12); }
 
 .act-warn    { color: var(--amber); background: var(--amber-soft); }
 .act-danger  { color: var(--red-bright); background: var(--red-soft); }
