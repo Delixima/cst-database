@@ -10,7 +10,7 @@ const NAV = [
   { key: 'logs',      href: 'logs',      label: 'Logs',            min: 1 },
   { key: 'players',   href: 'player',    label: 'Players',         min: 1 },
   { key: 'offenses',  href: 'offenses',  label: 'Offenses',        min: 5 },
-  { key: 'members',   href: 'members',   label: 'Members',         min: 5 },
+  { key: 'members',   href: 'members',   label: 'Members',         min: 4 },
   { key: 'audit',     href: 'audit',     label: 'Audit',           min: 5 },
 ];
 

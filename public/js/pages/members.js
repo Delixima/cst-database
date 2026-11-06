@@ -1,4 +1,4 @@
-// Members (manager): approve pending accounts, role, rank, service number,
+// Members (officer and manager): approve pending accounts, role, rank, service number,
 // squad / function memberships (several per member), deactivation;
 // manage ranks and units (squads & functions).
 
@@ -16,8 +16,11 @@ const ASSIGNABLE_ROLES = ['trooper', 'cs', 'officer', 'manager', 'read_only', 'p
 const TABS = ['pending', 'members', 'ranks', 'units'];
 
 boot(async () => {
-  const ctx = await requireAuth({ minLevel: 5 });
+  const ctx = await requireAuth({ minLevel: 4 });
   const main = renderShell(ctx, 'members');
+  // Officers manage members but never manager accounts nor the manager role (enforced by the database too).
+  const assignableRoles = ASSIGNABLE_ROLES.filter((r) => ctx.perms.manager || r !== 'manager');
+  const canEditMember = (p) => ctx.perms.manager || (p.role !== 'manager' && p.id !== ctx.user.id);
   let tab = TABS.includes(qs('tab')) ? qs('tab') : null;
 
   let data = { profiles: [], ranks: [], squads: [], memberships: [] };
@@ -92,7 +95,7 @@ boot(async () => {
         {
           label: '', className: 'right nowrap', render: (p) => [
             button('Approve as Trooper', () => quickValidate(p, 'trooper'), 'primary btn-sm'), ' ',
-            button('Approve…', () => editMember(p), 'ghost btn-sm'), ' ',
+            canEditMember(p) ? button('Approve…', () => editMember(p), 'ghost btn-sm') : null, ' ',
             button('Reject', () => refuse(p), 'danger btn-sm'),
           ],
         },
@@ -148,7 +151,7 @@ boot(async () => {
           { label: 'Role', render: (p) => roleBadge(p.role) },
           { label: 'Status', render: (p) => (p.active ? flag('Active', 'info') : flag('Deactivated', 'danger')) },
           { label: 'Signed up', className: 'nowrap small', render: (p) => fmtDateTime(p.created_at) },
-          { label: '', className: 'right', render: (p) => button('Edit', () => editMember(p), 'ghost btn-sm') },
+          { label: '', className: 'right', render: (p) => (canEditMember(p) ? button('Edit', () => editMember(p), 'ghost btn-sm') : null) },
         ], list, { rowClass: (p) => (p.active ? '' : 'row-voided') })
         : emptyState('No member matches.'));
     };
@@ -182,7 +185,7 @@ boot(async () => {
     const currentUnits = unitIdsOf(p.id);
     const username = input({ value: p.roblox_username ?? '', maxlength: 20 });
     const service = input({ value: p.service_number ?? '', maxlength: 20, placeholder: 'e.g. CST-0420' });
-    const role = select(ASSIGNABLE_ROLES.map((r) => ({ value: r, label: ROLES[r] })), { value: p.role === 'pending' ? 'trooper' : p.role });
+    const role = select(assignableRoles.map((r) => ({ value: r, label: ROLES[r] })), { value: p.role === 'pending' ? 'trooper' : p.role });
     const rank = select(data.ranks.filter((r) => r.active || r.id === p.rank_id).map((r) => ({ value: r.id, label: r.name })), { value: p.rank_id ?? '', placeholder: '— None —' });
     const squadsPick = unitPicker('squad', currentUnits);
     const functionsPick = unitPicker('function', currentUnits);

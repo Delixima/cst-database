@@ -461,7 +461,14 @@ begin
   perform tests.throws($q$select public.merge_players('Bad_Guy_1', 'Bad_Guy_9')$q$, 'manager', 'officer: cannot merge');
   perform tests.ok(tests.count_rows('select 1 from public.audit_log') = 0, 'officer: cannot read audit_log');
   perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('officer')$q$, 'manager', 'officer: cannot change its own role');
-  perform tests.ok(tests.affected($q$update public.profiles set role = 'officer' where id = tests.id('trooper_a')$q$) = 0, 'officer: cannot change others'' roles');
+  perform tests.throws($q$update public.profiles set role = 'manager' where id = tests.id('trooper_a')$q$, 'manager', 'officer: cannot grant the manager role');
+  perform tests.throws($q$update public.profiles set service_number = 'X-1' where id = tests.id('manager')$q$, 'manager', 'officer: cannot edit a manager account');
+  perform tests.throws($q$select public.update_member(tests.id('manager'), 'Test_Manager', null, 'officer', null, true, '{}')$q$, 'manager', 'officer: cannot demote a manager');
+  perform tests.ok(tests.affected($q$update public.profiles set service_number = 'CST-0001' where id = tests.id('trooper_a')$q$) = 1, 'officer: edits another member');
+  insert into public.ranks (name, short_name, sort_order) values ('Officer Test Rank', 'OTR', 99);
+  perform tests.ok(tests.count_rows($q$select 1 from public.ranks where name = 'Officer Test Rank'$q$) = 1, 'officer: creates a rank');
+  insert into public.squads (name) values ('Officer Test Squad');
+  perform tests.ok(tests.count_rows($q$select 1 from public.squads where name = 'Officer Test Squad'$q$) = 1, 'officer: creates a squad');
 end $$;
 reset role;
 
